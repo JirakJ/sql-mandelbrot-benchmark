@@ -140,6 +140,39 @@ This benchmark evaluates:
 3. **Query Optimization** - How well engines optimize complex recursive queries
 4. **Scalability** - Performance with increasing iterations and resolution
 
+## Testing
+
+This project includes comprehensive tests for all implementations. Tests run automatically on every push via GitHub Actions.
+
+### Running Tests Locally
+
+```bash
+# Run all tests
+make test
+
+# Or use pytest directly
+pytest test_implementations.py -v
+
+# Run only basic tests (faster)
+make test_quick
+```
+
+### What Tests Cover
+
+- **Basic Functionality** - Each implementation can execute without errors
+- **Output Validation** - Results have correct dimensions and value ranges
+- **Consistency** - Known mathematical properties of the Mandelbrot set
+- **Edge Cases** - Minimal dimensions, single iterations, many iterations
+- **Utilities** - Image saving and benchmark runner functionality
+
+### Continuous Integration
+
+Tests run on every push and pull request via GitHub Actions. The workflow:
+1. Tests all 7 implementations individually
+2. Validates output dimensions and ranges
+3. Runs the full test suite with pytest
+4. Verifies the main benchmark runner
+
 ## Contributing
 
 Contributions very welcome! Especially:
