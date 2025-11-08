@@ -1,0 +1,90 @@
+name: Test Mandelbrot Implementations
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test Implementations on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12']
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+
+    - name: Run tests
+      run: |
+        pytest test_implementations.py -v --tb=short
+
+    - name: Test individual implementations
+      run: |
+        echo "Testing DuckDB implementation..."
+        timeout 60 python -c "from duckbrot import run_duckbrot; result = run_duckbrot(100, 60, 50); print(f'✓ DuckDB: Generated {result.shape[0]}x{result.shape[1]} array')"
+        
+        echo "Testing Pure Python implementation..."
+        timeout 60 python -c "from pybrot import run_pybrot; result = run_pybrot(100, 60, 50); print(f'✓ PyBrot: Generated {len(result)}x{len(result[0])} array')"
+        
+        echo "Testing NumPy implementation..."
+        timeout 60 python -c "from numpybrot import run_numpybrot; result = run_numpybrot(100, 60, 50); print(f'✓ NumPyBrot: Generated {result.shape[0]}x{result.shape[1]} array')"
+        
+        echo "Testing SQLite implementation..."
+        timeout 60 python -c "from sqlitebrot import run_sqlitebrot; result = run_sqlitebrot(100, 60, 50); print(f'✓ SQLiteBrot: Generated {result.shape[0]}x{result.shape[1]} array')"
+        
+        echo "Testing FastPyBrot implementation..."
+        timeout 60 python -c "from fastpybrot import run_pybrot; result = run_pybrot(100, 60, 50); print(f'✓ FastPyBrot: Generated {len(result)}x{len(result[0])} array')"
+        
+        echo "Testing FasterPyBrot implementation..."
+        timeout 60 python -c "from fasterpybrot import run_pybrot; result = run_pybrot(100, 60, 50); print(f'✓ FasterPyBrot: Generated {len(result)}x{len(result[0])} array')"
+        
+        echo "Testing Arrow DataFusion implementation..."
+        timeout 60 python -c "from arrow_datafusion import run_arrow_datafusion; result = run_arrow_datafusion(100, 60, 50); print(f'✓ Arrow DataFusion: Generated {result.shape[0]}x{result.shape[1]} array')"
+
+    - name: Test main benchmark runner
+      run: |
+        echo "Testing main benchmark suite (with small test configuration)..."
+        timeout 120 python -c "
+        import sys
+        sys.path.insert(0, '.')
+        from main import BENCHMARKS
+        from utils import run_benchmark
+        import importlib
+        
+        test_results = []
+        for name, module_name, func_name in BENCHMARKS:
+            try:
+                module = importlib.import_module(module_name)
+                func = getattr(module, func_name)
+                result, elapsed = run_benchmark(name, func, 50, 30, 20)
+                if result is not None:
+                    test_results.append((name, 'PASSED', elapsed))
+                else:
+                    test_results.append((name, 'FAILED', None))
+            except Exception as e:
+                test_results.append((name, 'ERROR', str(e)))
+        
+        print('\n=== Benchmark Suite Test Results ===')
+        for name, status, info in test_results:
+            print(f'{status:8} | {name:30} | {info}')
+        "
