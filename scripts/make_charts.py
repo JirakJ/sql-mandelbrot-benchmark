@@ -197,15 +197,26 @@ LANGS = [
     ("Wren (VM pool)", 387.63, False),
     ("Rexx (decimal string math)", 1680.88, False),
     ("Bash (Q26 fixed-point)", 5589.11, False),
+    ("C3 (float[<8>] SIMD)", 0.80, True),
+    ("ISPC (SPMD NEON)", 0.91, True),
+    ("Pythran (Py->C++/xsimd)", 1.40, False),
+    ("CHICKEN (Scheme->C)", 5.99, False),
+    ("Halide (schedule DSL)", 7.16, True),
+    ("Gambit (Scheme->C)", 11.48, False),
+    ("Factor (concatenative)", 59.18, False),
+    ("GNU Smalltalk (pool)", 389.97, False),
+    ("Guile (JIT threads)", 1089.61, False),
+    ("GNU APL (whole-grid)", 2933.82, False),
 ]
-fig, ax = plt.subplots(figsize=(10.5, 21.5))
+LANGS.sort(key=lambda x: x[1])
+fig, ax = plt.subplots(figsize=(10.5, 24.5))
 names = [x[0] for x in LANGS][::-1]
 vals = [x[1] for x in LANGS][::-1]
 colors = [TEAL if x[2] else BLUE for x in LANGS][::-1]
 bars = ax.barh(names, vals, color=colors, height=0.62)
 ax.set_xscale("log")
 ax.set_xlabel("time, ms — log scale (lower is better)")
-ax.set_title("62 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
+ax.set_title("72 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
              pad=14, fontsize=14)
 for b, v in zip(bars, vals):
     lbl = f"{v:.2f} ms" if v < 100 else f"{v:,.0f} ms"

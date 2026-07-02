@@ -65,6 +65,12 @@ leanbrot_bin
 *.elc
 *.eln
 erlangbrot_build/
+chickenbrot_bin
+gambitbrot_bin
+.pythranbrot_build/
+.apl.history
+ispcbrot.h
+headers/
 
 # Distribution / packaging
 .Python

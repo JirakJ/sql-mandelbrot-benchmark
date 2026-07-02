@@ -154,12 +154,12 @@ the workload and the 40-core GPU pulls away:
 72 megapixels of 256-iteration Mandelbrot in 1.87 ms ≈ **38 gigapixel-iterations
 per second**.
 
-## Language shootout — one algorithm, sixty-two implementations
+## Language shootout — one algorithm, seventy-two implementations
 
 To separate "language speed" from "algorithm speed", the same optimized algorithm
 (SIMD where the language exposes it, all cores, cardioid/bulb early-out, y-axis
-symmetry, identical escape semantics) was implemented in **62 languages** across
-six waves. Full table with per-file links lives in the
+symmetry, identical escape semantics) was implemented in **72 languages** across
+seven waves. Full table with per-file links lives in the
 [README](README.md#language-shootout); the top tier and the extremes:
 
 | Language | Time | Notes |
@@ -172,8 +172,9 @@ six waves. Full table with per-file links lives in the
 | Zig | 0.45 ms | `@Vector(8, f32)`, `@mulAdd` |
 | ARM64 assembly | 0.54 ms | hand-written NEON — loses to every good compiler |
 | WebAssembly | 0.64 ms | hand-written WAT, SIMD128, 14 wasmtime instances |
-| … 46 more … | 1.2–108 ms | see README |
-| Elisp / Perl / PostScript / Prolog / Tcl / COBOL / AWK / Wren | 110–388 ms | the honest interpreter tail |
+| C3 / ISPC | 0.80 / 0.91 ms | `float[<8>]` SIMD · SPMD NEON — vector groups can't retire lanes early |
+| … 56 more … | 1.2–390 ms | see README |
+| Guile / GNU APL | 1.1 s / 2.9 s | boxed-flonum JIT · whole-grid array interpreter |
 | Rexx / Bash | 1.7 s / 5.6 s | decimal string math · Q26 fixed point (Bash has no floats) |
 
 ![Language shootout](web/assets/chart-languages.png)
@@ -196,11 +197,33 @@ Findings:
   Groovy 1.47 (Vector API), C# 1.67 / F# 2.44 (`AdvSimd`) — GC'd runtimes within
   ~4–8× of native, ahead of scalar Fortran and Go.
 - **Python's escape hatches reach the compiled tier**: Cython's nogil OpenMP
-  kernel (1.53 ms) and Numba's `prange` JIT (2.23 ms) sit among AOT-compiled
-  languages — ~2 000× faster than the CPython interpreter they extend. Vala
-  (1.35 ms) ties Nim by compiling to plain C.
+  kernel (1.53 ms), Numba's `prange` JIT (2.23 ms) and Pythran's Python→C++/xsimd
+  AOT (1.4 ms) sit among AOT-compiled languages — ~2 000× faster than the CPython
+  interpreter they extend. Vala (1.35 ms) ties Nim by compiling to plain C.
+- **The "even faster" hunt failed honestly — and explains *why* the hand kernel
+  wins.** Three explicit-SIMD contenders were added specifically to try to beat
+  the 0.34 ms Objective-C CPU crown: C3 (`float[<8>]` portable vectors → NEON)
+  landed at **0.80 ms**, ISPC (SPMD, `neon-i32x8`, `--opt=fast-math`) at
+  **0.91 ms**, Halide (schedule-DSL, `parallel(y).vectorize(x,8)`, JIT) at
+  **7.16 ms**. None came close. All three lose to the *same* structural cost: a
+  vector-group / SPMD-gang escape loop **cannot retire a lane the moment it
+  escapes** — the whole 8-wide group keeps iterating until its slowest pixel
+  hits `max_iter`. The winning NEON kernel sidesteps this by *amortizing* the
+  horizontal escape check (every 4th iteration) and running `G` independent
+  groups, so it hides latency without paying the gang-stall. Lesson: on a
+  divergent workload, the scheduling freedom of hand-written masking beats the
+  ergonomics of `foreach`/`select`-frozen SPMD. The record stands: **0.24 ms
+  hybrid, 0.30 ms GPU, 0.34 ms CPU.**
+- **Three Schemes, three backends**: CHICKEN (5.99 ms) and Gambit (11.48 ms)
+  compile Scheme → C → native and run a process pool (both VMs are green-threaded);
+  Guile's bytecode+JIT with boxed flonums and per-op allocation is ~180× slower
+  (1.09 s) even across a 14-thread pool. Backend, not syntax, sets the tier.
 - **Same VM, different language, 2× gap**: Gleam (14.5 ms) beats Erlang
   (30.2 ms) on the same BEAM — the typed, monomorphized kernel boxes less.
+- **Array-language ceiling**: GNU APL (2.93 s) is fully vectorized whole-grid,
+  but a tree-walking interpreter with no SIMD allocates ~6 float64 temporaries
+  per escape step and runs all 256 steps over every pixel (no per-pixel
+  early-exit) — the same wall R hits, one tier lower.
 - **The scripting tail is parallelism- and boxing-limited, not
   arithmetic-limited**: LuaJIT needs a process pool (19 ms), Ruby's Ractors
   carry coordination cost (36 ms), R pays copy-on-modify on every masked update

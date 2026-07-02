@@ -523,11 +523,11 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
 <section id="languages">
   <div class="wrap">
     <div class="kicker reveal">Language shootout</div>
-    <h2 class="reveal">Sixty-two languages, one algorithm</h2>
+    <h2 class="reveal">Seventy-two languages, one algorithm</h2>
     <p class="lede reveal">Same SIMD strategy, same early-outs, same symmetry, same escape semantics —
-      reimplemented in sixty-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
+      reimplemented in seventy-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-languages.png" alt="Language shootout, 62 languages from Metal 0.31 ms to Bash 5.6 s, log scale" loading="lazy">
+      <img src="assets/chart-languages.png" alt="Language shootout, 72 languages from Metal 0.31 ms to Bash 5.6 s, log scale" loading="lazy">
       <figcaption>Best-of-N runs, log scale. Teal = explicit SIMD (GPU, vector types, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
     </figure>
     <div class="callout reveal">
@@ -536,10 +536,19 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
       loses ~55 %</b> to the best of them. <b>WebAssembly beats plain C.</b> Vector-API JVMs cluster
       within ~4× of native. And the COBOL entry only became viable after swapping floats for Q28
       fixed-point — its float math routes through a decimal library. <b>Python's escape hatches reach
-      the compiled tier</b>: Cython 1.53 ms, Numba 2.23 ms — ~2 000× past the interpreter they extend.
-      <b>Gleam runs the same BEAM as Erlang 2× faster</b> — typed, monomorphized code boxes less. And
-      two languages with no float type at all still finish: Rexx in decimal string arithmetic (1.7 s),
+      the compiled tier</b>: Cython 1.53 ms, Numba 2.23 ms, Pythran 1.4 ms — ~2 000× past the interpreter
+      they extend. <b>Gleam runs the same BEAM as Erlang 2× faster</b> — typed, monomorphized code boxes less.
+      And two languages with no float type at all still finish: Rexx in decimal string arithmetic (1.7 s),
       Bash in Q26 fixed-point shell integers (5.6 s) — both still ~10× ahead of SQLite.
+    </div>
+    <div class="callout reveal">
+      <b>The "even faster" hunt came up empty — on purpose.</b> Three explicit-SIMD challengers were added
+      to try to dethrone the 0.34 ms Objective-C CPU crown: <b>C3</b> (<code>float[&lt;8&gt;]</code> → NEON) at
+      0.80 ms, <b>ISPC</b> (SPMD, <code>neon-i32x8</code>) at 0.91 ms, <b>Halide</b> (schedule-DSL, JIT) at
+      7.16 ms. None came close — all three share one wound: a vector-group escape loop <b>can't retire a
+      lane the moment it escapes</b>, so every 8-wide gang iterates to <code>max_iter</code> for its slowest
+      pixel. The hand-written NEON kernel wins because it <i>amortizes</i> the escape check instead. The
+      record holds: 0.24 ms hybrid, 0.30 ms GPU, 0.34 ms CPU.
     </div>
 
     <h3 class="reveal" style="margin-top:56px; font-size:21px; font-weight:700">Read the source — and where each language hits its ceiling</h3>
@@ -610,6 +619,16 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
         ["Wren", "wrenbrot.wren", "<b>Limit:</b> an embeddable single-threaded VM whose CLI stdout can't carry NUL bytes — pixels travel as base-255 triplets. Slower than AWK on this workload."],
         ["Rexx", "rexxbrot.rexx", "<b>Limit:</b> arithmetic is decimal string math by language spec — every add re-parses digits. 1.7 s is the honest cost of mainframe-era portability."],
         ["Bash", "bashbrot.sh", "<b>Limit:</b> no floating point at all — the escape loop runs Q26 fixed-point in 64-bit shell arithmetic. 5.6 s across 14 workers, and it still beats SQLite by 8×."],
+        ["C3", "c3brot.c3", "<b>Limit:</b> 0.80 ms — the fastest of the new SIMD challengers, but its portable <code>float[&lt;8&gt;]</code> vectors can only retire an 8-lane group once its LAST pixel escapes, so boundary gangs iterate to max_iter for every lane. That gang-stall is why hand-written amortized NEON still wins."],
+        ["ISPC", "ispcbrot.ispc", "<b>Limit:</b> 0.91 ms. SPMD is the cleanest way to write SIMD, but the same lane-retire wall applies: the gang runs at the pace of its slowest program instance. <code>--opt=fast-math</code> (ISPC's flag, not clang's) bought ~0.1 ms with zero accuracy loss."],
+        ["Halide", "halidebrot.cpp", "<b>Limit:</b> 7.16 ms. The algorithm/schedule split is elegant, but Mandelbrot is its worst case: an RDom reduction freezes escaped lanes with <code>select</code> rather than retiring them, so every lane runs all 256 steps. Great for stencils, wrong shape for divergent escape loops."],
+        ["Pythran", "pythranbrot_impl.py", "<b>Limit:</b> 1.4 ms. Transpiles annotated Python to C++/xsimd with OpenMP, but the data-dependent early break keeps the hot loop scalar-per-lane — xsimd only packs straight-line array expressions, leaving ~2× on the table vs explicit NEON."],
+        ["CHICKEN Scheme", "chickenbrot.scm", "<b>Limit:</b> 5.99 ms. Compiles Scheme → C → native and is the fastest Scheme here, but green threads only — all 14-way parallelism is faked with separate OS worker processes over pipes, and the flonum path stays boxed-then-unboxed scalar."],
+        ["Gambit Scheme", "gambitbrot.scm", "<b>Limit:</b> 11.48 ms. Also Scheme → C → native (needs a real gcc; the clang-built runtime aborts), same green-thread process-pool story as CHICKEN, and gsc emits generic C the backend won't auto-vectorize to NEON."],
+        ["Factor", "factorbrot.factor", "<b>Limit:</b> 59.18 ms. Even with <code>TYPED::</code> monomorphic float words through the optimizing JIT, the arithmetic stays scalar (no SIMD), cooperative threads can't spread one image across cores, and each row band pays pipe-serialization to its worker process."],
+        ["GNU Smalltalk", "smalltalkbrot.st", "<b>Limit:</b> 390 ms. A pure bytecode VM with no JIT: every FloatD multiply is a dispatched, boxed message send interpreted one bytecode at a time. 14 forked VM processes are the only way to touch all cores."],
+        ["Guile", "guilebrot.scm", "<b>Limit:</b> 1.09 s. Guile 3's baseline JIT and real POSIX threads help, but boxed-flonum arithmetic with per-operation allocation and no SIMD makes each escape step cost several times a compiled multiply-add — even with all 14 cores saturated."],
+        ["GNU APL", "aplbrot.apl", "<b>Limit:</b> 2.93 s. A tree-walking array interpreter: fully vectorized whole-grid, but no per-element JIT or SIMD, ~6 float64 temporaries allocated per escape step, and whole-array form admits no per-pixel early-exit — the same wall R hits, one tier down."],
         ["NumPy", "numpybrot.py", "<b>Limit:</b> every masked update materializes full temporaries — memory bandwidth becomes the bottleneck long before ALUs."],
         ["Python", "pybrot.py", "<b>Limit:</b> the interpreter: ~5 s of boxed-float bytecode dispatch for what NEON does in 0.4 ms."],
         ["SQL — DuckDB", "duckbrot.py", "<b>Limit:</b> recursive CTEs materialize every iteration for every pixel — brilliant engine, wrong computational model."],

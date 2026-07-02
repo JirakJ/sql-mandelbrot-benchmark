@@ -51,7 +51,7 @@ Current results on 1400x800 pixels, 256 max iterations, Macbook Pro M4 Max:
 
 ## Language Shootout
 
-Sixty-two languages, one identical algorithm (float SIMD where available, all
+Seventy-two languages, one identical algorithm (float SIMD where available, all
 cores, cardioid + period-2 bulb early-out, y-axis symmetry). Best-of-N runs,
 Apple M4 Max:
 
@@ -68,57 +68,67 @@ Apple M4 Max:
 | 9 | Zig ([zigbrot.zig](zigbrot.zig)) | @Vector(8,f32) + GCD | 0.45 ms |
 | 10 | ARM64 asm ([asmbrot.s](asmbrot.s)) | hand-written NEON + GCD shim | 0.54 ms |
 | 11 | WebAssembly ([wasmbrot.wat](wasmbrot.wat)) | hand-written WAT, SIMD128, wasmtime | 0.64 ms |
-| 12 | C ([cbrot.c](cbrot.c)) | scalar, `-O3` autovectorization only | 1.23 ms |
-| 13 | Java ([JavaBrot.java](JavaBrot.java)) | Vector API + parallel streams | 1.26 ms |
-| 14 | Scala ([ScalaBrot.scala](ScalaBrot.scala)) | Vector API + parallel streams | 1.26 ms |
-| 15 | Kotlin ([KotlinBrot.kt](KotlinBrot.kt)) | Vector API + parallel streams | 1.3 ms |
-| 16 | Nim ([nimbrot.nim](nimbrot.nim)) | thread pool, `-d:danger` | 1.35 ms |
-| 17 | Vala ([valabrot.vala](valabrot.vala)) | compiles to C, GLib thread pool | 1.35 ms |
-| 18 | Fortran ([fortranbrot.f90](fortranbrot.f90)) | OpenMP | 1.38 ms |
-| 19 | Futhark ([futharkbrot.fut](futharkbrot.fut)) | data-parallel, multicore backend | 1.41 ms |
-| 20 | Go ([gobrot_src/](gobrot_src/)) | goroutines, c-shared | 1.41 ms |
-| 21 | Groovy ([GroovyBrot.groovy](GroovyBrot.groovy)) | @CompileStatic + Vector API | 1.47 ms |
-| 22 | Cython ([cythonbrot.pyx](cythonbrot.pyx)) | nogil float32 kernel + OpenMP prange | 1.53 ms |
-| 23 | C# ([csharpbrot/](csharpbrot/)) | AdvSimd intrinsics + Parallel.For | 1.67 ms |
-| 24 | Haskell ([haskellbrot.hs](haskellbrot.hs)) | GHC -threaded, unboxed loop | 1.94 ms |
-| 25 | Free Pascal ([pascalbrot.pas](pascalbrot.pas)) | RTLEvent thread pool | 1.95 ms |
-| 26 | Chapel ([chapelbrot.chpl](chapelbrot.chpl)) | forall + dynamic iterator | 1.99 ms |
-| 27 | Clojure ([clojurebrot.clj](clojurebrot.clj)) | unchecked primitives, thread pool | 2.1 ms |
-| 28 | Haxe ([HaxeBrot.hx](HaxeBrot.hx)) | C++ target, sys.thread pool | 2.12 ms |
-| 29 | JavaScript ([jsbrot.mjs](jsbrot.mjs)) | Node worker_threads + SAB | 2.19 ms |
-| 30 | Numba ([numbabrot.py](numbabrot.py)) | @njit(parallel=True) prange, fastmath | 2.23 ms |
-| 31 | Standard ML ([smlbrot.sml](smlbrot.sml)) | MLton whole-program opt, process pool | 2.37 ms |
-| 32 | Lean 4 ([leanbrot.lean](leanbrot.lean)) | compiled via C, Task.spawn pool | 2.41 ms |
-| 33 | F# ([fsharpbrot/](fsharpbrot/)) | AdvSimd intrinsics + Parallel.For | 2.44 ms |
-| 34 | Common Lisp ([sbclbrot.lisp](sbclbrot.lisp)) | SBCL sb-thread, typed floats | 2.7 ms |
-| 35 | Dart ([dartbrot.dart](dartbrot.dart)) | AOT + isolate pool | 2.7 ms |
-| 36 | Chez Scheme ([chezbrot.ss](chezbrot.ss)) | fl-ops, fork-thread pool | 2.77 ms |
-| 37 | OCaml ([ocamlbrot.ml](ocamlbrot.ml)) | OCaml 5 domain pool | 2.82 ms |
-| 38 | PHP ([phpbrot.php](phpbrot.php)) | opcache JIT, process pool | 2.95 ms |
-| 39 | Racket ([racketbrot.rkt](racketbrot.rkt)) | CS compiler, places pool | 3.33 ms |
-| 40 | Julia ([juliabrot.jl](juliabrot.jl)) | @threads | 3.55 ms |
-| 41 | Crystal ([crystalbrot.cr](crystalbrot.cr)) | multi-threaded fibers | 8.94 ms |
-| 42 | Pony ([ponybrot/main.pony](ponybrot/main.pony)) | work-stealing actors, LLVM | 9.32 ms |
-| 43 | Gleam ([gleambrot_src/](gleambrot_src/src/gleambrot.gleam)) | typed BEAM, process per row band | 14.5 ms |
-| 44 | Elixir ([elixirbrot.exs](elixirbrot.exs)) | BEAM Task.async_stream | 17.52 ms |
-| 45 | LuaJIT ([luajitbrot.lua](luajitbrot.lua)) | persistent process pool | 19.43 ms |
-| 46 | Forth ([forthbrot.fs](forthbrot.fs)) | gforth-fast worker pool | 22.98 ms |
-| 47 | Erlang ([erlangbrot.erl](erlangbrot.erl)) | BEAM, process per row band | 30.2 ms |
-| 48 | Ruby ([rubybrot.rb](rubybrot.rb)) | YJIT + Ractor pool | 35.61 ms |
-| 49 | Janet ([janetbrot.janet](janetbrot.janet)) | ev/spawn-thread OS-thread pool | 35.72 ms |
-| 50 | Squirrel ([squirrelbrot.nut](squirrelbrot.nut)) | VM worker pool, interleaved rows | 61.4 ms |
-| 51 | Raku ([rakubrot.raku](rakubrot.raku)) | MoarVM, native num, start/await | 78.93 ms |
-| 52 | R ([rbrot.R](rbrot.R)) | vectorized whole-grid (NumPy-style) | 108.5 ms |
-| 53 | Emacs Lisp ([elispbrot.el](elispbrot.el)) | native-comp, batch worker pool | 109.76 ms |
-| 54 | Perl ([perlbrot.pl](perlbrot.pl)) | process pool | 153.5 ms |
-| 55 | PostScript ([psbrot.ps](psbrot.ps)) | Ghostscript worker pool | 178.04 ms |
-| 56 | Prolog ([prologbrot.pl](prologbrot.pl)) | SWI-Prolog threads, message queue | 181.03 ms |
-| 57 | Tcl ([tclbrot.tcl](tclbrot.tcl)) | tclsh process pool, pipelined bands | 183.6 ms |
-| 58 | COBOL ([cobolbrot.cob](cobolbrot.cob)) | Q28 fixed-point, process pool | 201.3 ms |
-| 59 | AWK ([awkbrot.awk](awkbrot.awk)) | gawk process pool, binary %c | 277.6 ms |
-| 60 | Wren ([wrenbrot.wren](wrenbrot.wren)) | VM pool, base-255 stdout protocol | 387.63 ms |
-| 61 | Rexx ([rexxbrot.rexx](rexxbrot.rexx)) | Regina pool, decimal string math | 1,681 ms |
-| 62 | Bash ([bashbrot.sh](bashbrot.sh)) | Q26 fixed-point, persistent pool | 5,589 ms |
+| 12 | C3 ([c3brot.c3](c3brot.c3)) | float[<8>] SIMD + OS threads | 0.8 ms |
+| 13 | ISPC ([ispcbrot.ispc](ispcbrot.ispc)) | SPMD NEON i32x8 + libdispatch | 0.91 ms |
+| 14 | C ([cbrot.c](cbrot.c)) | scalar, `-O3` autovectorization only | 1.23 ms |
+| 15 | Java ([JavaBrot.java](JavaBrot.java)) | Vector API + parallel streams | 1.26 ms |
+| 16 | Scala ([ScalaBrot.scala](ScalaBrot.scala)) | Vector API + parallel streams | 1.26 ms |
+| 17 | Kotlin ([KotlinBrot.kt](KotlinBrot.kt)) | Vector API + parallel streams | 1.3 ms |
+| 18 | Nim ([nimbrot.nim](nimbrot.nim)) | thread pool, `-d:danger` | 1.35 ms |
+| 19 | Vala ([valabrot.vala](valabrot.vala)) | compiles to C, GLib thread pool | 1.35 ms |
+| 20 | Fortran ([fortranbrot.f90](fortranbrot.f90)) | OpenMP | 1.38 ms |
+| 21 | Pythran ([pythranbrot_impl.py](pythranbrot_impl.py)) | Python→C++/xsimd, OpenMP | 1.4 ms |
+| 22 | Futhark ([futharkbrot.fut](futharkbrot.fut)) | data-parallel, multicore backend | 1.41 ms |
+| 23 | Go ([gobrot_src/](gobrot_src/)) | goroutines, c-shared | 1.41 ms |
+| 24 | Groovy ([GroovyBrot.groovy](GroovyBrot.groovy)) | @CompileStatic + Vector API | 1.47 ms |
+| 25 | Cython ([cythonbrot.pyx](cythonbrot.pyx)) | nogil float32 kernel + OpenMP prange | 1.53 ms |
+| 26 | C# ([csharpbrot/](csharpbrot/)) | AdvSimd intrinsics + Parallel.For | 1.67 ms |
+| 27 | Haskell ([haskellbrot.hs](haskellbrot.hs)) | GHC -threaded, unboxed loop | 1.94 ms |
+| 28 | Free Pascal ([pascalbrot.pas](pascalbrot.pas)) | RTLEvent thread pool | 1.95 ms |
+| 29 | Chapel ([chapelbrot.chpl](chapelbrot.chpl)) | forall + dynamic iterator | 1.99 ms |
+| 30 | Clojure ([clojurebrot.clj](clojurebrot.clj)) | unchecked primitives, thread pool | 2.1 ms |
+| 31 | Haxe ([HaxeBrot.hx](HaxeBrot.hx)) | C++ target, sys.thread pool | 2.12 ms |
+| 32 | JavaScript ([jsbrot.mjs](jsbrot.mjs)) | Node worker_threads + SAB | 2.19 ms |
+| 33 | Numba ([numbabrot.py](numbabrot.py)) | @njit(parallel=True) prange, fastmath | 2.23 ms |
+| 34 | Standard ML ([smlbrot.sml](smlbrot.sml)) | MLton whole-program opt, process pool | 2.37 ms |
+| 35 | Lean 4 ([leanbrot.lean](leanbrot.lean)) | compiled via C, Task.spawn pool | 2.41 ms |
+| 36 | F# ([fsharpbrot/](fsharpbrot/)) | AdvSimd intrinsics + Parallel.For | 2.44 ms |
+| 37 | Common Lisp ([sbclbrot.lisp](sbclbrot.lisp)) | SBCL sb-thread, typed floats | 2.7 ms |
+| 38 | Dart ([dartbrot.dart](dartbrot.dart)) | AOT + isolate pool | 2.7 ms |
+| 39 | Chez Scheme ([chezbrot.ss](chezbrot.ss)) | fl-ops, fork-thread pool | 2.77 ms |
+| 40 | OCaml ([ocamlbrot.ml](ocamlbrot.ml)) | OCaml 5 domain pool | 2.82 ms |
+| 41 | PHP ([phpbrot.php](phpbrot.php)) | opcache JIT, process pool | 2.95 ms |
+| 42 | Racket ([racketbrot.rkt](racketbrot.rkt)) | CS compiler, places pool | 3.33 ms |
+| 43 | Julia ([juliabrot.jl](juliabrot.jl)) | @threads | 3.55 ms |
+| 44 | CHICKEN ([chickenbrot.scm](chickenbrot.scm)) | Scheme→C native, process pool | 5.99 ms |
+| 45 | Halide ([halidebrot.cpp](halidebrot.cpp)) | Tuple/RDom pipeline, parallel+vectorize(8), JIT | 7.16 ms |
+| 46 | Crystal ([crystalbrot.cr](crystalbrot.cr)) | multi-threaded fibers | 8.94 ms |
+| 47 | Pony ([ponybrot/main.pony](ponybrot/main.pony)) | work-stealing actors, LLVM | 9.32 ms |
+| 48 | Gambit ([gambitbrot.scm](gambitbrot.scm)) | Scheme→C native, process pool | 11.48 ms |
+| 49 | Gleam ([gleambrot_src/](gleambrot_src/src/gleambrot.gleam)) | typed BEAM, process per row band | 14.5 ms |
+| 50 | Elixir ([elixirbrot.exs](elixirbrot.exs)) | BEAM Task.async_stream | 17.52 ms |
+| 51 | LuaJIT ([luajitbrot.lua](luajitbrot.lua)) | persistent process pool | 19.43 ms |
+| 52 | Forth ([forthbrot.fs](forthbrot.fs)) | gforth-fast worker pool | 22.98 ms |
+| 53 | Erlang ([erlangbrot.erl](erlangbrot.erl)) | BEAM, process per row band | 30.2 ms |
+| 54 | Ruby ([rubybrot.rb](rubybrot.rb)) | YJIT + Ractor pool | 35.61 ms |
+| 55 | Janet ([janetbrot.janet](janetbrot.janet)) | ev/spawn-thread OS-thread pool | 35.72 ms |
+| 56 | Factor ([factorbrot.factor](factorbrot.factor)) | concatenative JIT, process pool | 59.18 ms |
+| 57 | Squirrel ([squirrelbrot.nut](squirrelbrot.nut)) | VM worker pool, interleaved rows | 61.4 ms |
+| 58 | Raku ([rakubrot.raku](rakubrot.raku)) | MoarVM, native num, start/await | 78.93 ms |
+| 59 | R ([rbrot.R](rbrot.R)) | vectorized whole-grid (NumPy-style) | 108.5 ms |
+| 60 | Emacs Lisp ([elispbrot.el](elispbrot.el)) | native-comp, batch worker pool | 109.76 ms |
+| 61 | Perl ([perlbrot.pl](perlbrot.pl)) | process pool | 153.5 ms |
+| 62 | PostScript ([psbrot.ps](psbrot.ps)) | Ghostscript worker pool | 178.04 ms |
+| 63 | Prolog ([prologbrot.pl](prologbrot.pl)) | SWI-Prolog threads, message queue | 181.03 ms |
+| 64 | Tcl ([tclbrot.tcl](tclbrot.tcl)) | tclsh process pool, pipelined bands | 183.6 ms |
+| 65 | COBOL ([cobolbrot.cob](cobolbrot.cob)) | Q28 fixed-point, process pool | 201.3 ms |
+| 66 | AWK ([awkbrot.awk](awkbrot.awk)) | gawk process pool, binary %c | 277.6 ms |
+| 67 | Wren ([wrenbrot.wren](wrenbrot.wren)) | VM pool, base-255 stdout protocol | 387.63 ms |
+| 68 | GNU Smalltalk ([smalltalkbrot.st](smalltalkbrot.st)) | bytecode VM, process pool | 389.97 ms |
+| 69 | Guile ([guilebrot.scm](guilebrot.scm)) | JIT + POSIX thread pool | 1,090 ms |
+| 70 | Rexx ([rexxbrot.rexx](rexxbrot.rexx)) | Regina pool, decimal string math | 1,681 ms |
+| 71 | GNU APL ([aplbrot.apl](aplbrot.apl)) | whole-grid vectorized, process pool | 2,934 ms |
+| 72 | Bash ([bashbrot.sh](bashbrot.sh)) | Q26 fixed-point, persistent pool | 5,589 ms |
 
 Notable: **Objective-C (clang `ext_vector_type`) is the fastest CPU entry** —
 generic clang vector extensions out-scheduled hand-picked NEON intrinsics.
@@ -127,10 +137,20 @@ loses ~55 % to the best compiled entries** — compilers model the M4 pipeline
 better than humans. **WebAssembly at 0.64 ms** beats plain C: portable SIMD128
 with a ~2× tax on native. Vector API entries (Java/Scala/Kotlin/Groovy) cluster
 at 1.3–1.5 ms. **Vala matches Nim** (1.35 ms) by compiling to plain C, and
-Python's own escape hatches — **Cython (1.53 ms) and Numba (2.23 ms)** — land
-in the compiled tier, ~2 000× faster than the interpreter they extend.
-**Gleam beats Erlang 2×** (14.5 vs 30.2 ms) on the same BEAM — monomorphized
-typed code pays less boxing. The scripting tail (Perl/PostScript/Prolog/Tcl/
+Python's own escape hatches — **Cython (1.53 ms), Numba (2.23 ms) and Pythran
+(1.4 ms, Python→C++/xsimd)** — land in the compiled tier, ~2 000× faster than
+the interpreter they extend. **The explicit-SIMD challengers landed but did not
+dethrone anyone**: C3 (`float[<8>]`) at 0.80 ms and ISPC (SPMD NEON) at 0.91 ms
+sit just behind plain C, and Halide's schedule-DSL pipeline at 7.16 ms trails
+badly — all three share one wound, a *vector-group escape loop cannot retire a
+lane early*, so every gang runs to `max_iter` for its slowest pixel; the
+hand-written NEON kernel wins precisely because it amortizes the escape check
+instead. **Gleam beats Erlang 2×** (14.5 vs 30.2 ms) on the same BEAM —
+monomorphized typed code pays less boxing. Three Schemes, three backends:
+CHICKEN (5.99 ms) and Gambit (11.48 ms) compile to C; Guile's bytecode+JIT with
+boxed flonums is ~180× slower (1.09 s). **GNU APL (2.93 s)** is the honest floor
+of whole-grid array evaluation — no per-pixel early-exit, six float64 temporaries
+per escape step. The scripting tail (Perl/PostScript/Prolog/Tcl/
 COBOL/AWK at 150–280 ms) is still ~150 000× faster than SQLite's recursive
 CTE; **Rexx (1.7 s, decimal string arithmetic) and Bash (5.6 s, Q26 fixed
 point — Bash has no floats at all)** bring up the rear and *still* beat
