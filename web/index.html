@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Apple Silicon Performance Engineering — Jakub Jirák</title>
-  <meta name="description" content="Extracting the maximum from an Apple M4 Max: a Mandelbrot case study taken from 972 ms to 0.30 ms with NEON SIMD, libdispatch, algorithmic symmetry and Metal GPU compute. Every optimization measured, verified and documented.">
+  <meta name="description" content="Extracting the maximum from an Apple M4 Max: a Mandelbrot case study taken from 972 ms to 0.24 ms with NEON SIMD, libdispatch, algorithmic symmetry and Metal GPU compute. Every optimization measured, verified and documented.">
   <meta name="author" content="Jakub Jirák">
   <link rel="canonical" href="https://performance.jakubjirak.com/" />
   <meta name="theme-color" content="#07111f" />
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://performance.jakubjirak.com/">
-  <meta property="og:title" content="Apple Silicon Performance Engineering — 972 ms → 0.30 ms">
-  <meta property="og:description" content="A Mandelbrot case study: NEON SIMD, all-core dispatch, conjugation symmetry and Metal GPU compute on the Apple M4 Max. 3 240× faster than optimized NumPy.">
+  <meta property="og:title" content="Apple Silicon Performance Engineering — 972 ms → 0.24 ms">
+  <meta property="og:description" content="A Mandelbrot case study: NEON SIMD, all-core dispatch, conjugation symmetry and Metal GPU compute on the Apple M4 Max. 4 120× faster than optimized NumPy.">
   <meta property="og:image" content="https://performance.jakubjirak.com/assets/mandelbrot-hero.png">
   <meta property="og:site_name" content="Jakub Jirák — Performance">
   <meta name="twitter:card" content="summary_large_image">
@@ -23,7 +23,7 @@
   {
     "@context": "https://schema.org",
     "@type": "TechArticle",
-    "headline": "Apple Silicon Performance Engineering: Mandelbrot from 972 ms to 0.30 ms",
+    "headline": "Apple Silicon Performance Engineering: Mandelbrot from 972 ms to 0.24 ms",
     "author": { "@type": "Person", "name": "Jakub Jirák", "url": "https://www.jakubjirak.com/" },
     "about": ["Apple Silicon", "ARM NEON", "SIMD", "Metal", "GPU computing", "performance optimization"],
     "inLanguage": "en"
@@ -300,10 +300,11 @@
   <div class="fractal"></div>
   <div class="wrap">
     <div class="eyebrow rise d1">Apple Silicon · Performance Engineering</div>
-    <h1 class="rise d2"><span class="from ms">972&nbsp;ms</span> → <span class="to ms">0.30&nbsp;ms</span></h1>
-    <div class="hero-metric rise d3"><span id="counter" data-target="3240">0</span>×<small>faster than optimized NumPy</small></div>
+    <h1 class="rise d2"><span class="from ms">972&nbsp;ms</span> → <span class="to ms">0.24&nbsp;ms</span></h1>
+    <div class="hero-metric rise d3"><span id="counter" data-target="4120">0</span>×<small>faster than optimized NumPy</small></div>
     <p class="hero-sub rise d4">The same Mandelbrot workload. The same machine. What changes is how much of the
-      M4 Max you actually use — SIMD lanes, all 14 CPU cores, algorithmic symmetry, and finally the 40-core GPU.
+      M4 Max you actually use — SIMD lanes, all 14 CPU cores, algorithmic symmetry, the 40-core GPU, and
+      finally <b style="color:var(--teal-soft)">both engines on one frame at once</b>.
       Every step measured, verified, and documented below.</p>
     <div class="hero-cta rise d5">
       <a class="btn btn-primary" href="#casestudy">Read the case study</a>
@@ -314,8 +315,8 @@
 
 <div class="wrap">
   <div class="stats">
-    <div class="stat"><b>0.30 ms</b><span>Metal GPU — 1400×800 × 256 iterations</span></div>
-    <div class="stat"><b>0.39 ms</b><span>C++ NEON — 14 CPU cores</span></div>
+    <div class="stat"><b>0.24 ms</b><span>Hybrid — CPU + GPU on one shared frame</span></div>
+    <div class="stat"><b>0.34 ms</b><span>fastest CPU-only — Objective-C ext_vector</span></div>
     <div class="stat"><b>38 Gpx·it/s</b><span>GPU throughput at 72 megapixels</span></div>
     <div class="stat"><b>99.8 %</b><span>pixels within ±1 iteration of float64 reference</span></div>
   </div>
@@ -471,6 +472,18 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
             Shipped 32×8 = 256 threads per group, matching Apple's guidance — but only after the sweep confirmed it.</p>
         </div>
       </div>
+
+      <div class="step gpu reveal">
+        <div class="no">11</div>
+        <div>
+          <h3>Hybrid: CPU and GPU on the same frame <span class="chip">0.31 → 0.24 ms — the ceiling</span></h3>
+          <p>Unified memory's endgame. The Metal kernel takes ~56 % of the rows with an <b>async commit</b>;
+            while the GPU renders, a clang <code>ext_vector</code> float8 kernel computes the remaining rows on all
+            14 CPU cores — <b>into the same shared MTLBuffer</b>. Disjoint rows, hazard tracking off, one
+            <code>waitUntilCompleted</code>. The split is calibrated once at import. A discrete GPU would need a
+            PCIe round-trip here; this win is pure Apple Silicon architecture.</p>
+        </div>
+      </div>
     </div>
 
     <figure class="chart reveal">
@@ -510,11 +523,11 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
 <section id="languages">
   <div class="wrap">
     <div class="kicker reveal">Language shootout</div>
-    <h2 class="reveal">Forty-two languages, one algorithm</h2>
+    <h2 class="reveal">Sixty-two languages, one algorithm</h2>
     <p class="lede reveal">Same SIMD strategy, same early-outs, same symmetry, same escape semantics —
-      reimplemented in forty-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
+      reimplemented in sixty-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-languages.png" alt="Language shootout, 42 languages from Metal 0.31 ms to AWK 278 ms, log scale" loading="lazy">
+      <img src="assets/chart-languages.png" alt="Language shootout, 62 languages from Metal 0.31 ms to Bash 5.6 s, log scale" loading="lazy">
       <figcaption>Best-of-N runs, log scale. Teal = explicit SIMD (GPU, vector types, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
     </figure>
     <div class="callout reveal">
@@ -522,7 +535,11 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
       hand-picked NEON intrinsics. The top seven all compile through LLVM; <b>hand-written assembly
       loses ~55 %</b> to the best of them. <b>WebAssembly beats plain C.</b> Vector-API JVMs cluster
       within ~4× of native. And the COBOL entry only became viable after swapping floats for Q28
-      fixed-point — its float math routes through a decimal library.
+      fixed-point — its float math routes through a decimal library. <b>Python's escape hatches reach
+      the compiled tier</b>: Cython 1.53 ms, Numba 2.23 ms — ~2 000× past the interpreter they extend.
+      <b>Gleam runs the same BEAM as Erlang 2× faster</b> — typed, monomorphized code boxes less. And
+      two languages with no float type at all still finish: Rexx in decimal string arithmetic (1.7 s),
+      Bash in Q26 fixed-point shell integers (5.6 s) — both still ~10× ahead of SQLite.
     </div>
 
     <h3 class="reveal" style="margin-top:56px; font-size:21px; font-weight:700">Read the source — and where each language hits its ceiling</h3>
@@ -573,6 +590,26 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
         ["COBOL", "cobolbrot.cob", "<b>Limit:</b> COMP-2 floats route through a GMP decimal runtime — 50 s naive. Shipping Q28 fixed-point on BINARY-DOUBLE bought 25×. Built for ledgers; it fights every FLOP."],
         ["AWK", "awkbrot.awk", "<b>Limit:</b> a text-processing language doing numerics — every value a string-number dual, every op interpreted; 278 ms with 14 gawk workers is its honest ceiling."],
         ["Haxe", "haxebrot.hx", "<b>Limit:</b> speed depends entirely on the target backend (C++ here); the abstraction that makes it portable hides the knobs that make it fast."],
+        ["Vala", "valabrot.vala", "<b>Limit:</b> compiles to plain C, so it ties Nim at 1.35 ms — and inherits C's autovectorization wall; the GObject machinery is the price of the GNOME ecosystem."],
+        ["Cython", "cythonbrot.pyx", "<b>Limit:</b> near-C (1.53 ms) only once everything is annotated — typed locals, nogil, OpenMP prange. One untyped line silently falls back to interpreted Python."],
+        ["Numba", "numbabrot.py", "<b>Limit:</b> scalar LLVM JIT with no explicit SIMD story, and multi-second JIT warm-up every cold start — hidden here in an untimed import, unavoidable in a CLI."],
+        ["Standard ML", "smlbrot.sml", "<b>Limit:</b> MLton's whole-program optimizer emits superb scalar code, but the language has no threads at all — parallelism is a pool of processes. No SIMD, ever."],
+        ["Lean 4", "leanbrot.lean", "<b>Limit:</b> a theorem prover that compiles through C to a respectable 2.4 ms; reference counting and boxed structures keep hot numerics off the native tier."],
+        ["Racket", "racketbrot.rkt", "<b>Limit:</b> places give true parallelism but are isolated heaps — every result crosses a message pipe; flonums box outside local loops, and there is no SIMD path."],
+        ["Pony", "ponybrot/main.pony", "<b>Limit:</b> LLVM-native and data-race-free by construction, but per-row actor mailboxes cost more than the math — and the ecosystem is nearly a rounding error."],
+        ["Gleam", "gleambrot_src/src/gleambrot.gleam", "<b>Limit:</b> the BEAM boxes every float. Typed, monomorphized code halves Erlang's cost on the same VM — but there is no path to raw arrays or SIMD."],
+        ["Erlang", "erlangbrot.erl", "<b>Limit:</b> built for a million sockets, not FLOPs — boxed floats, immutable heaps. Schedulers spread rows across cores beautifully; each core runs ~100× off native."],
+        ["Janet", "janetbrot.janet", "<b>Limit:</b> real OS threads — rare in a scripting VM — but bytecode dispatch and boxed doubles cap per-core speed ~100× off native."],
+        ["Forth", "forthbrot.fs", "<b>Limit:</b> gforth is a threaded-code interpreter — every word an indirect jump, no optimizing compiler, no threads. gforth-fast plus a process pool is its honest ceiling."],
+        ["Raku", "rakubrot.raku", "<b>Limit:</b> the most dynamic language here. MoarVM's JIT plus native num/int typed locals still leave ~200× on the table — every operation is potentially polymorphic."],
+        ["Squirrel", "squirrelbrot.nut", "<b>Limit:</b> a single-threaded game-scripting VM — interpreted dispatch on every op, process pools for cores; it exists to script engines, not to be one."],
+        ["Emacs Lisp", "elispbrot.el", "<b>Limit:</b> native-comp (libgccjit) makes it a real compiler now, but floats stay boxed and there are no shared-memory threads — this entry runs 14 batch Emacsen."],
+        ["Tcl", "tclbrot.tcl", "<b>Limit:</b> \"everything is a string\" — numbers live as dual string/int values, opcodes are interpreted, and cores require a process pool."],
+        ["Prolog", "prologbrot.pl", "<b>Limit:</b> unification and backtracking machinery tax every arithmetic step — is/2 was not designed to be evaluated 250 million times. Real SWI threads, though."],
+        ["PostScript", "psbrot.ps", "<b>Limit:</b> a printer control language doing math — stack-shuffling interpreted dispatch in Ghostscript. It was never meant to hand pixels back to a caller."],
+        ["Wren", "wrenbrot.wren", "<b>Limit:</b> an embeddable single-threaded VM whose CLI stdout can't carry NUL bytes — pixels travel as base-255 triplets. Slower than AWK on this workload."],
+        ["Rexx", "rexxbrot.rexx", "<b>Limit:</b> arithmetic is decimal string math by language spec — every add re-parses digits. 1.7 s is the honest cost of mainframe-era portability."],
+        ["Bash", "bashbrot.sh", "<b>Limit:</b> no floating point at all — the escape loop runs Q26 fixed-point in 64-bit shell arithmetic. 5.6 s across 14 workers, and it still beats SQLite by 8×."],
         ["NumPy", "numpybrot.py", "<b>Limit:</b> every masked update materializes full temporaries — memory bandwidth becomes the bottleneck long before ALUs."],
         ["Python", "pybrot.py", "<b>Limit:</b> the interpreter: ~5 s of boxed-float bytecode dispatch for what NEON does in 0.4 ms."],
         ["SQL — DuckDB", "duckbrot.py", "<b>Limit:</b> recursive CTEs materialize every iteration for every pixel — brilliant engine, wrong computational model."],
@@ -634,7 +671,7 @@ uv run python metalbrot.py   <span class="tok-c"># Metal GPU kernel (0.30 ms)</s
     <div>© 2026 <a href="https://www.jakubjirak.com">Jakub Jirák</a> — Principal Software Engineer.<br>
       Architecture · Automation · Performance · AI integration.</div>
     <div style="text-align:right">Measured on Apple M4 Max, macOS 26.5.<br>
-      <span style="font-family:var(--mono); font-size:13px">972 ms → 0.30 ms · no magic, only measurement</span></div>
+      <span style="font-family:var(--mono); font-size:13px">972 ms → 0.24 ms · no magic, only measurement</span></div>
   </div>
 </footer>
 

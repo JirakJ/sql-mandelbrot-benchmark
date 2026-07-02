@@ -1,4 +1,4 @@
-# Squeezing an Apple M4 Max: Mandelbrot from 972 ms to 0.30 ms
+# Squeezing an Apple M4 Max: Mandelbrot from 972 ms to 0.24 ms
 
 A case study in extracting maximum performance from Apple Silicon —
 every optimization applied to this repository's Mandelbrot benchmark,
@@ -23,6 +23,7 @@ cores (128-bit NEON, FMA), 40-core GPU, unified memory, macOS 26.5.
 | **C++ NEON, all cores (v1)** | **0.79 ms** | **1 230×** |
 | **+ y-symmetry + amortized checks (v2)** | **0.39 ms** | **2 490×** |
 | **Metal GPU, zero-copy (v3)** | **0.30 ms** | **3 240×** |
+| **Hybrid CPU+GPU, one shared frame (v4)** | **0.24 ms** | **4 120×** |
 
 ![Benchmark ladder](web/assets/chart-ladder.png)
 ![Optimization journey](web/assets/chart-journey.png)
@@ -116,6 +117,24 @@ Swept threadgroup heights (32×4, 32×8, 32×16, 32×32): flat between 4 and 16,
 regression at 32. Shipped 32×8 = 256 threads/group, matching Apple's
 occupancy guidance.
 
+## Hybrid — both engines, one frame — [`hybridbrot.mm`](hybridbrot.mm)
+
+### 11. CPU and GPU computing the same frame concurrently
+
+Unified memory's endgame: the Metal kernel takes the first ~56 % of the top-half
+rows (async commit, no wait), while a clang `ext_vector` float8 CPU kernel — the
+fastest CPU approach measured here — computes the remaining rows on all 14 cores
+**into the same shared `MTLBuffer`**. Disjoint row ranges, hazard tracking off,
+one `waitUntilCompleted` at the end. No copies anywhere; Python still gets a
+zero-copy numpy view.
+
+The GPU/CPU split is calibrated once at import (a 30-run sweep, untimed): 56 %
+GPU on this machine. Result: **0.236 ms best / 0.29 ms median** — 25 % faster
+than pure GPU (0.318 ms), 30 % faster than the best pure-CPU kernel (0.378 ms),
+and ~4 120× faster than optimized NumPy. A strided row split (uniform mix of cheap/expensive rows for both engines) measured *slower* than the contiguous split — it costs the GPU row locality; the dead end ships in the source, documented. On a discrete-GPU machine this design
+would require a PCIe round-trip and would not win; it is an Apple Silicon
+architecture dividend.
+
 ## CPU vs GPU: the crossover
 
 At the benchmark size the GPU wins only 1.5× — a Metal dispatch has a fixed
@@ -135,12 +154,12 @@ the workload and the 40-core GPU pulls away:
 72 megapixels of 256-iteration Mandelbrot in 1.87 ms ≈ **38 gigapixel-iterations
 per second**.
 
-## Language shootout — one algorithm, forty-two implementations
+## Language shootout — one algorithm, sixty-two implementations
 
 To separate "language speed" from "algorithm speed", the same optimized algorithm
 (SIMD where the language exposes it, all cores, cardioid/bulb early-out, y-axis
-symmetry, identical escape semantics) was implemented in **42 languages** across
-four waves. Full table with per-file links lives in the
+symmetry, identical escape semantics) was implemented in **62 languages** across
+six waves. Full table with per-file links lives in the
 [README](README.md#language-shootout); the top tier and the extremes:
 
 | Language | Time | Notes |
@@ -153,8 +172,9 @@ four waves. Full table with per-file links lives in the
 | Zig | 0.45 ms | `@Vector(8, f32)`, `@mulAdd` |
 | ARM64 assembly | 0.54 ms | hand-written NEON — loses to every good compiler |
 | WebAssembly | 0.64 ms | hand-written WAT, SIMD128, 14 wasmtime instances |
-| … 30 more … | 1.2–36 ms | see README |
-| R / Perl / COBOL / AWK | 108–278 ms | the honest tail; COBOL needed Q28 fixed-point |
+| … 46 more … | 1.2–108 ms | see README |
+| Elisp / Perl / PostScript / Prolog / Tcl / COBOL / AWK / Wren | 110–388 ms | the honest interpreter tail |
+| Rexx / Bash | 1.7 s / 5.6 s | decimal string math · Q26 fixed point (Bash has no floats) |
 
 ![Language shootout](web/assets/chart-languages.png)
 
@@ -175,10 +195,19 @@ Findings:
 - **SIMD APIs on managed runtimes deliver**: Java 1.26, Scala 1.26, Kotlin 1.30,
   Groovy 1.47 (Vector API), C# 1.67 / F# 2.44 (`AdvSimd`) — GC'd runtimes within
   ~4–8× of native, ahead of scalar Fortran and Go.
+- **Python's escape hatches reach the compiled tier**: Cython's nogil OpenMP
+  kernel (1.53 ms) and Numba's `prange` JIT (2.23 ms) sit among AOT-compiled
+  languages — ~2 000× faster than the CPython interpreter they extend. Vala
+  (1.35 ms) ties Nim by compiling to plain C.
+- **Same VM, different language, 2× gap**: Gleam (14.5 ms) beats Erlang
+  (30.2 ms) on the same BEAM — the typed, monomorphized kernel boxes less.
 - **The scripting tail is parallelism- and boxing-limited, not
   arithmetic-limited**: LuaJIT needs a process pool (19 ms), Ruby's Ractors
   carry coordination cost (36 ms), R pays copy-on-modify on every masked update
-  (108 ms). COBOL's floats route through a GMP decimal runtime — switching to
+  (108 ms). Languages with no float type at all still finish: Rexx does decimal
+  string arithmetic (1.7 s), Bash runs Q26 fixed point on 64-bit integers
+  (5.6 s) — both still ~10× faster than SQLite's recursive CTE. COBOL's floats
+  route through a GMP decimal runtime — switching to
   Q28 fixed-point on BINARY-DOUBLE fields bought 25× (49.8 s → 2 s
   single-worker, 0.2 s pooled).
 - Fairness: compile & JIT warm-up happen at import (untimed); managed runtimes

@@ -1,0 +1,100 @@
+%!PS
+% Mandelbrot worker for psbrot.py (run: gs -dNODISPLAY -dNOSAFER -q psbrot.ps).
+% Protocol: read "w h maxit r0 r1" lines from %stdin, compute rows [r0,r1)
+% of the top half, write them as raw uint16 LE bytes to %stdout, flush.
+% Loops until EOF, then quits. Per-column constants cached across requests.
+% Escape loop keeps z on the operand stack with the iteration count driven
+% by `for` (counter managed in C) - 1.7x faster than a def/load loop here.
+
+/stdi (%stdin) (r) file def
+/stdo (%stdout) (w) file def
+/lbuf 128 string def
+
+/wd 64 dict def
+wd begin
+
+/PW -1 def
+/PH -1 def
+/PMI -1 def
+
+% pack table: 2-byte LE string per count value, cached on MI change
+/mkpak {
+  /PAK MI 1 add array def
+  0 1 MI {
+    /V exch def
+    /S 2 string def
+    S 0 V 255 and put
+    S 1 V -8 bitshift put
+    PAK V S put
+  } for
+} bind def
+
+% per-(W,H) caches: cr, crm, crm^2, (cr+1)^2 per column + row byte buffer
+/setup {
+  /DX 3.5 W 1 sub div def
+  /DY 2.0 H 1 sub div def
+  /RB W 2 mul string def
+  /CRS W array def
+  /CMS W array def
+  /C2S W array def
+  /P2S W array def
+  0 1 W 1 sub {
+    /X exch def
+    /CR X DX mul 2.5 sub def
+    CRS X CR put
+    /CM CR 0.25 sub def
+    CMS X CM put
+    C2S X CM CM mul put
+    P2S X CR 1.0 add dup mul put
+  } for
+} bind def
+
+/dorow {
+  /CI ROW DY mul 1.0 sub def
+  /CI2 CI CI mul def
+  /Q4 CI2 0.25 mul def
+  /M1 MI 1 sub def
+  0 1 W 1 sub {
+    /X exch def
+    /Q C2S X get CI2 add def
+    Q Q CMS X get add mul Q4 le
+    P2S X get CI2 add 0.0625 le or {
+      /IT MI def                       % cardioid / period-2 bulb: in set
+    } {
+      /CR CRS X get def
+      /IT MI def                       % bailout overrides below
+      0.0 0.0                          % zr zi; for pushes it on top
+      0 1 M1 {
+        3 1 roll                       % it zr zi
+        2 copy mul dup add CI add      % it zr zi t   (t = 2*zr*zi + ci)
+        3 1 roll                       % it t zr zi
+        dup mul                        % it t zr zi2
+        exch dup mul                   % it t zi2 zr2
+        2 copy add 4.0 gt { pop pop pop /IT exch def 0 0 exit } if
+        exch sub CR add                % it t nzr     (zr2 - zi2 + cr)
+        exch                           % it nzr nzi
+        3 -1 roll pop                  % nzr nzi
+      } for
+      pop pop
+    } ifelse
+    RB X 2 mul PAK IT get putinterval
+  } for
+  stdo RB writestring
+} bind def
+
+{
+  stdi lbuf readline not { exit } if
+  token pop exch token pop exch token pop exch token pop exch token pop exch pop
+  /R1 exch def /R0 exch def /MI exch def /H exch def /W exch def
+  W PW ne H PH ne or {
+    setup /PW W def /PH H def
+  } if
+  MI PMI ne {
+    mkpak /PMI MI def
+  } if
+  R0 1 R1 1 sub { /ROW exch def dorow } for
+  stdo flushfile
+} loop
+
+end
+quit

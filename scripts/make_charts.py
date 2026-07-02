@@ -74,6 +74,7 @@ JOURNEY = [
     ("v1: NEON SIMD\n+ all cores + early-out", 0.79, LIGHT_BLUE),
     ("v2: + y-symmetry\n+ amortized checks", 0.39, TEAL),
     ("v3: Metal GPU\n+ zero-copy", 0.30, "#5eead4"),
+    ("v4: hybrid\nCPU + GPU together", 0.24, "#99f6e4"),
 ]
 fig, ax = plt.subplots(figsize=(10, 5.2))
 xs = range(len(JOURNEY))
@@ -87,7 +88,7 @@ ax.set_title("Optimization journey — same workload, same machine", pad=14, fon
 for x, v in zip(xs, vals):
     ax.text(x, v * 1.35, f"{v:g} ms", ha="center", fontsize=12, color=TEXT,
             fontweight="bold")
-speedups = ["1×", "1 230×", "2 490×", "3 240×"]
+speedups = ["1×", "1 230×", "2 490×", "3 240×", "4 120×"]
 for x, (v, s) in enumerate(zip(vals, speedups)):
     ax.text(x, v * 0.35, s, ha="center", fontsize=11, color=BG if x else TEXT,
             fontweight="bold")
@@ -145,10 +146,12 @@ LANGS = [
     ("Scala (Vector API)", 1.26, True),
     ("Kotlin (Vector API)", 1.30, True),
     ("Nim (threads)", 1.35, False),
+    ("Vala (C backend, GLib)", 1.35, False),
     ("Fortran (OpenMP)", 1.38, False),
     ("Futhark (multicore)", 1.41, False),
     ("Go (goroutines)", 1.41, False),
     ("Groovy (Vector API)", 1.47, True),
+    ("Cython (nogil + OpenMP)", 1.53, False),
     ("C# (AdvSimd)", 1.67, True),
     ("Haskell (GHC threads)", 1.94, False),
     ("Free Pascal (threads)", 1.95, False),
@@ -156,35 +159,54 @@ LANGS = [
     ("Clojure (JVM primitives)", 2.10, False),
     ("Haxe (C++ target)", 2.12, False),
     ("JavaScript (Node workers)", 2.19, False),
+    ("Numba (JIT prange)", 2.23, False),
+    ("Standard ML (MLton)", 2.37, False),
+    ("Lean 4 (Tasks)", 2.41, False),
     ("F# (AdvSimd)", 2.44, True),
     ("Common Lisp (SBCL)", 2.70, False),
     ("Dart (isolates)", 2.70, False),
     ("Chez Scheme (fl ops)", 2.77, False),
     ("OCaml (domains)", 2.82, False),
     ("PHP (JIT, process pool)", 2.95, False),
+    ("Racket (places)", 3.33, False),
     ("Julia (threads)", 3.55, False),
     ("Crystal (MT fibers)", 8.94, False),
+    ("Pony (actors)", 9.32, False),
+    ("Gleam (typed BEAM)", 14.50, False),
     ("Elixir (BEAM)", 17.52, False),
     ("LuaJIT (process pool)", 19.43, False),
+    ("Forth (gforth pool)", 22.98, False),
+    ("Erlang (BEAM)", 30.20, False),
     ("Ruby (YJIT + Ractors)", 35.61, False),
+    ("Janet (ev threads)", 35.72, False),
+    ("Squirrel (VM pool)", 61.40, False),
+    ("Raku (MoarVM)", 78.93, False),
     ("R (vectorized)", 108.47, False),
+    ("Emacs Lisp (native-comp)", 109.76, False),
     ("Perl (process pool)", 153.54, False),
+    ("PostScript (Ghostscript)", 178.04, False),
+    ("Prolog (SWI threads)", 181.03, False),
+    ("Tcl (process pool)", 183.60, False),
     ("COBOL (Q28 fixed-point)", 201.28, False),
     ("AWK (gawk pool)", 277.65, False),
+    ("Wren (VM pool)", 387.63, False),
+    ("Rexx (decimal string math)", 1680.88, False),
+    ("Bash (Q26 fixed-point)", 5589.11, False),
 ]
-fig, ax = plt.subplots(figsize=(10.5, 15.5))
+fig, ax = plt.subplots(figsize=(10.5, 21.5))
 names = [x[0] for x in LANGS][::-1]
 vals = [x[1] for x in LANGS][::-1]
 colors = [TEAL if x[2] else BLUE for x in LANGS][::-1]
 bars = ax.barh(names, vals, color=colors, height=0.62)
 ax.set_xscale("log")
 ax.set_xlabel("time, ms — log scale (lower is better)")
-ax.set_title("42 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
+ax.set_title("62 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
              pad=14, fontsize=14)
 for b, v in zip(bars, vals):
-    ax.text(b.get_width() * 1.09, b.get_y() + b.get_height() / 2, f"{v:.2f} ms",
+    lbl = f"{v:.2f} ms" if v < 100 else f"{v:,.0f} ms"
+    ax.text(b.get_width() * 1.09, b.get_y() + b.get_height() / 2, lbl,
             va="center", fontsize=10, color=TEXT)
-ax.set_xlim(0.25, 700)
+ax.set_xlim(0.25, 16000)
 ax.grid(axis="x", which="both")
 ax.set_axisbelow(True)
 fig.tight_layout()

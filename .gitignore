@@ -52,6 +52,19 @@ chezbrot_bin
 haxebrot_build/
 haxebrot_bin
 cobolbrot_bin
+smlbrot_bin
+ponybrot_bin
+*.beam
+valabrot.h
+valabrot.vapi
+valabrot.c
+.cythonbrot_build/
+gleambrot_src/build/
+leanbrot_src/.lake/
+leanbrot_bin
+*.elc
+*.eln
+erlangbrot_build/
 
 # Distribution / packaging
 .Python
