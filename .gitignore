@@ -6,6 +6,19 @@ __pycache__/
 
 # C extensions
 *.so
+*.dylib
+
+# Vercel
+web/.vercel/
+web/.env.local
+
+# native build artifacts (language benchmark entries)
+rustbrot/target/
+libgobrot.h
+*.class
+javabrot_classes/
+dartbrot_bin
+*.o
 
 # Distribution / packaging
 .Python

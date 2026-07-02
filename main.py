@@ -19,6 +19,18 @@ MAX_ITERATIONS = 256
 
 # Benchmark registry: (name, module, function)
 BENCHMARKS = [
+    ("Metal GPU", "metalbrot", "run_metalbrot"),
+    ("C++ NEON (SIMD+threads)", "cppbrot", "run_cppbrot"),
+    ("ARM64 Assembly (NEON)", "asmbrot", "run_asmbrot"),
+    ("Rust (NEON+rayon)", "rustbrot", "run_rustbrot"),
+    ("Swift (SIMD8+GCD)", "swiftbrot", "run_swiftbrot"),
+    ("C (autovectorized)", "cbrot", "run_cbrot"),
+    ("Fortran (OpenMP)", "fortranbrot", "run_fortranbrot"),
+    ("Go (goroutines)", "gobrot", "run_gobrot"),
+    ("Java (Vector API)", "javabrot", "run_javabrot"),
+    ("Julia (threads)", "juliabrot", "run_juliabrot"),
+    ("JavaScript (Node workers)", "jsbrot", "run_jsbrot"),
+    ("Dart (isolates)", "dartbrot", "run_dartbrot"),
     ("NumPy (Vectorized)", "numpybrot", "run_numpybrot"),
     ("ArrowDatafusion", "arrow_datafusion", "run_arrow_datafusion"),
     ("DuckDB (SQL)", "duckbrot", "run_duckbrot"),
