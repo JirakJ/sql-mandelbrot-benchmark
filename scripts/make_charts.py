@@ -47,6 +47,7 @@ LADDER = [
     ("NumPy (vectorized)", 972.0, False),
     ("C++ NEON (CPU)", 0.39, True),
     ("Metal (GPU)", 0.30, True),
+    ("Hybrid CPU+GPU", 0.24, True),
 ]
 
 fig, ax = plt.subplots(figsize=(10, 5.6))
@@ -62,6 +63,10 @@ for b, v in zip(bars, vals):
     ax.text(b.get_width() * 1.25, b.get_y() + b.get_height() / 2, label,
             va="center", fontsize=10.5, color=TEXT)
 ax.set_xlim(0.1, 400000)
+span = LADDER[0][1] / LADDER[-1][1]
+ax.text(0.985, 0.88, f"≈ {span:,.0f}× faster\nsix orders of magnitude",
+        transform=ax.transAxes, ha="right", va="top", fontsize=12.5,
+        color=TEAL, fontweight="bold", linespacing=1.4)
 ax.grid(axis="x", which="both")
 ax.set_axisbelow(True)
 fig.tight_layout()
