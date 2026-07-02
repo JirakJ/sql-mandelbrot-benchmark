@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Apple Silicon Performance Engineering — Jakub Jirák</title>
-  <meta name="description" content="Extracting the maximum from an Apple M4 Max: a Mandelbrot case study taken from 972 ms to 0.24 ms with NEON SIMD, libdispatch, algorithmic symmetry and Metal GPU compute. Every optimization measured, verified and documented.">
+  <meta name="description" content="Extracting the maximum from an Apple M4 Max: a Mandelbrot case study taken from 972 ms to 0.15 ms with NEON SIMD, libdispatch, algorithmic symmetry, Metal GPU compute and the WWDC 2026 Metal 4 command model. Every optimization measured, verified and documented.">
   <meta name="author" content="Jakub Jirák">
   <link rel="canonical" href="https://performance.jakubjirak.com/" />
   <meta name="theme-color" content="#07111f" />
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://performance.jakubjirak.com/">
-  <meta property="og:title" content="Apple Silicon Performance Engineering — 972 ms → 0.24 ms">
-  <meta property="og:description" content="A Mandelbrot case study: NEON SIMD, all-core dispatch, conjugation symmetry and Metal GPU compute on the Apple M4 Max. 4 120× faster than optimized NumPy.">
+  <meta property="og:title" content="Apple Silicon Performance Engineering — 972 ms → 0.15 ms">
+  <meta property="og:description" content="A Mandelbrot case study: NEON SIMD, all-core dispatch, conjugation symmetry, Metal GPU compute and the WWDC 2026 Metal 4 command model on the Apple M4 Max. 6 480× faster than optimized NumPy.">
   <meta property="og:image" content="https://performance.jakubjirak.com/assets/mandelbrot-hero.png">
   <meta property="og:site_name" content="Jakub Jirák — Performance">
   <meta name="twitter:card" content="summary_large_image">
@@ -23,7 +23,7 @@
   {
     "@context": "https://schema.org",
     "@type": "TechArticle",
-    "headline": "Apple Silicon Performance Engineering: Mandelbrot from 972 ms to 0.24 ms",
+    "headline": "Apple Silicon Performance Engineering: Mandelbrot from 972 ms to 0.15 ms",
     "author": { "@type": "Person", "name": "Jakub Jirák", "url": "https://www.jakubjirak.com/" },
     "about": ["Apple Silicon", "ARM NEON", "SIMD", "Metal", "GPU computing", "performance optimization"],
     "inLanguage": "en"
@@ -300,11 +300,12 @@
   <div class="fractal"></div>
   <div class="wrap">
     <div class="eyebrow rise d1">Apple Silicon · Performance Engineering</div>
-    <h1 class="rise d2"><span class="from ms">972&nbsp;ms</span> → <span class="to ms">0.24&nbsp;ms</span></h1>
-    <div class="hero-metric rise d3"><span id="counter" data-target="4120">0</span>×<small>faster than optimized NumPy</small></div>
+    <h1 class="rise d2"><span class="from ms">972&nbsp;ms</span> → <span class="to ms">0.15&nbsp;ms</span></h1>
+    <div class="hero-metric rise d3"><span id="counter" data-target="6480">0</span>×<small>faster than optimized NumPy</small></div>
     <p class="hero-sub rise d4">The same Mandelbrot workload. The same machine. What changes is how much of the
-      M4 Max you actually use — SIMD lanes, all 14 CPU cores, algorithmic symmetry, the 40-core GPU, and
-      finally <b style="color:var(--teal-soft)">both engines on one frame at once</b>.
+      M4 Max you actually use — SIMD lanes, all 14 CPU cores, algorithmic symmetry, the 40-core GPU,
+      both engines on one frame at once, and finally the
+      <b style="color:var(--teal-soft)">WWDC 2026 Metal 4 command model</b>.
       Every step measured, verified, and documented below.</p>
     <div class="hero-cta rise d5">
       <a class="btn btn-primary" href="#casestudy">Read the case study</a>
@@ -315,8 +316,8 @@
 
 <div class="wrap">
   <div class="stats">
-    <div class="stat"><b>0.24 ms</b><span>Hybrid — CPU + GPU on one shared frame</span></div>
-    <div class="stat"><b>0.34 ms</b><span>fastest CPU-only — Objective-C ext_vector</span></div>
+    <div class="stat"><b>0.15 ms</b><span>Hybrid on the Metal 4 command model</span></div>
+    <div class="stat"><b>0.24 ms</b><span>Metal 3 hybrid — the prior ceiling</span></div>
     <div class="stat"><b>38 Gpx·it/s</b><span>GPU throughput at 72 megapixels</span></div>
     <div class="stat"><b>99.8 %</b><span>pixels within ±1 iteration of float64 reference</span></div>
   </div>
@@ -342,9 +343,9 @@
     <div class="kicker reveal">The baseline</div>
     <h2 class="reveal">Six orders of magnitude on one chart</h2>
     <p class="lede reveal">The repository benchmarks SQL engines (recursive CTEs!), Python and NumPy against native code.
-      Same fractal, same escape semantics — from four minutes to under a quarter of a millisecond, a near-million-fold span.</p>
+      Same fractal, same escape semantics — from four minutes to about a sixth of a millisecond, an over-1.5-million-fold span.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-ladder.png" alt="Benchmark ladder: SQLite ~4 min single-run down to hybrid CPU+GPU 0.24 ms, log scale spanning six orders of magnitude" loading="lazy">
+      <img src="assets/chart-ladder.png" alt="Benchmark ladder: SQLite ~4 min single-run down to the Metal 4 hybrid at 0.15 ms, log scale spanning over six orders of magnitude" loading="lazy">
       <figcaption>Single-run wall-clock, 1400×800 px × 256 iterations, Apple M4 Max. Log scale — each gridline is 10×.</figcaption>
     </figure>
   </div>
@@ -476,12 +477,29 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
       <div class="step gpu reveal">
         <div class="no">11</div>
         <div>
-          <h3>Hybrid: CPU and GPU on the same frame <span class="chip">0.31 → 0.24 ms — the ceiling</span></h3>
+          <h3>Hybrid: CPU and GPU on the same frame <span class="chip">0.31 → 0.24 ms</span></h3>
           <p>Unified memory's endgame. The Metal kernel takes ~56 % of the rows with an <b>async commit</b>;
             while the GPU renders, a clang <code>ext_vector</code> float8 kernel computes the remaining rows on all
             14 CPU cores — <b>into the same shared MTLBuffer</b>. Disjoint rows, hazard tracking off, one
             <code>waitUntilCompleted</code>. The split is calibrated once at import. A discrete GPU would need a
             PCIe round-trip here; this win is pure Apple Silicon architecture.</p>
+        </div>
+      </div>
+
+      <div class="step gpu reveal">
+        <div class="no">12</div>
+        <div>
+          <h3>WWDC 2026: the Metal 4 command model <span class="chip">0.24 → 0.15 ms — new ceiling</span></h3>
+          <p>The one WWDC 2026 feature that fits a divergent escape loop — not tensors, not the Neural
+            Accelerators (those are M5, and this is matmul hardware anyway). <b>Metal 4</b> replaces the
+            per-dispatch bookkeeping with a pre-baked <code>MTL4ArgumentTable</code> (resources bound by raw
+            GPU address), an explicit <code>MTLResidencySet</code>, and a reusable
+            <code>MTL4CommandAllocator</code>/<code>MTL4CommandBuffer</code> committed on an
+            <code>MTL4CommandQueue</code>. At this size the ~0.26 ms fixed submit latency dominates, so cutting
+            it matters: GPU-only drops ~6 %, but in the hybrid the cheaper submit lets the split shift to
+            <b>76 % GPU</b> with a tighter async overlap — a robust <b>~31 % win, 0.24 → 0.15 ms</b>
+            (faster on 90 % of paired samples). Same kernel, bit-identical output; only the submission path
+            changed.</p>
         </div>
       </div>
     </div>
@@ -547,8 +565,10 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
       0.80 ms, <b>ISPC</b> (SPMD, <code>neon-i32x8</code>) at 0.91 ms, <b>Halide</b> (schedule-DSL, JIT) at
       7.16 ms. None came close — all three share one wound: a vector-group escape loop <b>can't retire a
       lane the moment it escapes</b>, so every 8-wide gang iterates to <code>max_iter</code> for its slowest
-      pixel. The hand-written NEON kernel wins because it <i>amortizes</i> the escape check instead. The
-      record holds: 0.24 ms hybrid, 0.30 ms GPU, 0.34 ms CPU.
+      pixel. The hand-written NEON kernel wins because it <i>amortizes</i> the escape check instead. The CPU
+      crown holds at 0.34 ms — <b>but the "even faster" hunt did land elsewhere</b>: the WWDC 2026 Metal 4
+      command model cut the hybrid from 0.24 to 0.15 ms (see step 12). Language choice couldn't beat the
+      kernel; the <i>submission API</i> could.
     </div>
 
     <h3 class="reveal" style="margin-top:56px; font-size:21px; font-weight:700">Read the source — and where each language hits its ceiling</h3>
@@ -690,7 +710,7 @@ uv run python metalbrot.py   <span class="tok-c"># Metal GPU kernel (0.30 ms)</s
     <div>© 2026 <a href="https://www.jakubjirak.com">Jakub Jirák</a> — Principal Software Engineer.<br>
       Architecture · Automation · Performance · AI integration.</div>
     <div style="text-align:right">Measured on Apple M4 Max, macOS 26.5.<br>
-      <span style="font-family:var(--mono); font-size:13px">972 ms → 0.24 ms · no magic, only measurement</span></div>
+      <span style="font-family:var(--mono); font-size:13px">972 ms → 0.15 ms · no magic, only measurement</span></div>
   </div>
 </footer>
 

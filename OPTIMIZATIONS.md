@@ -1,4 +1,4 @@
-# Squeezing an Apple M4 Max: Mandelbrot from 972 ms to 0.24 ms
+# Squeezing an Apple M4 Max: Mandelbrot from 972 ms to 0.15 ms
 
 A case study in extracting maximum performance from Apple Silicon —
 every optimization applied to this repository's Mandelbrot benchmark,
@@ -24,6 +24,7 @@ cores (128-bit NEON, FMA), 40-core GPU, unified memory, macOS 26.5.
 | **+ y-symmetry + amortized checks (v2)** | **0.39 ms** | **2 490×** |
 | **Metal GPU, zero-copy (v3)** | **0.30 ms** | **3 240×** |
 | **Hybrid CPU+GPU, one shared frame (v4)** | **0.24 ms** | **4 120×** |
+| **Hybrid on Metal 4 command model (v5)** | **0.15 ms** | **6 480×** |
 
 ![Benchmark ladder](web/assets/chart-ladder.png)
 ![Optimization journey](web/assets/chart-journey.png)
@@ -135,6 +136,43 @@ and ~4 120× faster than optimized NumPy. A strided row split (uniform mix of ch
 would require a PCIe round-trip and would not win; it is an Apple Silicon
 architecture dividend.
 
+## WWDC 2026 — the Metal 4 command model — [`hybrid4brot.mm`](hybrid4brot.mm)
+
+### 12. Cutting submission latency, not compute
+
+WWDC 2026's marquee GPU features — Metal performance primitives / TensorOps,
+quantized tensor formats, the M5 Neural Accelerators — are matrix/ML hardware and
+do **nothing** for a divergent per-pixel escape loop (and the Neural Accelerators
+aren't on M4 Max anyway). The one applicable lever is **Metal 4's command model**.
+
+At this size the GPU is submission-bound: of ~0.30 ms GPU time, only ~0.04 ms is
+compute and ~0.26 ms is fixed submit/execute latency. Metal 4 attacks exactly
+that fixed cost. The GPU half of the hybrid was rebuilt on:
+
+- `MTL4CommandQueue`, a reusable `MTL4CommandAllocator` + `MTL4CommandBuffer`
+  (`beginCommandBuffer…`/`endCommandBuffer`), committed with `[queue commit:&cb count:1]`;
+- an `MTL4ArgumentTable` that binds resources by **raw GPU address**
+  (`setAddress:atIndex:` with `buffer.gpuAddress`) — no per-dispatch `setBuffer`;
+- an explicit `MTLResidencySet` on the queue, replacing implicit residency tracking;
+- the pipeline built through the Metal 4 compiler (`newCompilerWithDescriptor:` →
+  `MTL4ComputePipelineDescriptor`), producing a normal `MTLComputePipelineState`;
+- async submit preserved (commit + `signalEvent`, CPU `dispatch_apply_f`, then
+  `MTLSharedEvent waitUntilSignaledValue:` — `MTL4CommandBuffer` has no
+  `waitUntilCompleted`).
+
+The kernel is byte-for-byte the same as v4; **only the submission path changed**.
+Measured head-to-head in one warm process (same protocol as v4):
+
+- GPU-only: 0.31 ms vs Metal 3's 0.33 ms — a modest ~6 %.
+- **Hybrid: 0.15 ms best / ~0.16 ms median vs the Metal 3 hybrid's 0.24 ms — a
+  robust ~31 % gain**, faster on ~90 % of paired samples, bit-identical output.
+
+Why the hybrid gains far more than GPU-only: the cheaper submit shortens the GPU
+critical path *and* shifts the optimal balance from a 54 % to a **76 % GPU split** —
+the fast Metal 4 dispatch does more of the frame while the CPU becomes a small
+top-up. This is the first optimization here that beat the incumbent by re-tooling
+the *API*, not the math: **0.24 → 0.15 ms, ~6 480× NumPy.**
+
 ## CPU vs GPU: the crossover
 
 At the benchmark size the GPU wins only 1.5× — a Metal dispatch has a fixed
@@ -212,8 +250,10 @@ Findings:
   horizontal escape check (every 4th iteration) and running `G` independent
   groups, so it hides latency without paying the gang-stall. Lesson: on a
   divergent workload, the scheduling freedom of hand-written masking beats the
-  ergonomics of `foreach`/`select`-frozen SPMD. The record stands: **0.24 ms
-  hybrid, 0.30 ms GPU, 0.34 ms CPU.**
+  ergonomics of `foreach`/`select`-frozen SPMD. The CPU crown holds at **0.34 ms** —
+  no *language* beat the hand kernel. The record did fall elsewhere, though: the
+  WWDC 2026 **Metal 4 command model** (§12) cut the hybrid to **0.15 ms** by
+  re-tooling the submission API, not the arithmetic.
 - **Three Schemes, three backends**: CHICKEN (5.99 ms) and Gambit (11.48 ms)
   compile Scheme → C → native and run a process pool (both VMs are green-threaded);
   Guile's bytecode+JIT with boxed flonums and per-op allocation is ~180× slower

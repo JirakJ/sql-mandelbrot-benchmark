@@ -35,10 +35,11 @@ Current results on 1400x800 pixels, 256 max iterations, Macbook Pro M4 Max:
 
 | 🏆 | Engine/Implementation        | Time (ms) | Relative Performance |
 |----|------------------------------|-----------|---------------------|
-| 1  | **Hybrid CPU+GPU**           | ~0.24 ms  | **~0.0003x** ⭐     |
-| 2  | **Metal GPU**                |  ~0.3 ms  | ~0.0004x            |
-| 3  | **C++ NEON (SIMD + threads)**|  ~0.4 ms  | ~0.0005x            |
-| 3  | NumPy (vectorized, unrolled) |   665 ms  | 0.83x               |
+| 1  | **Hybrid Metal 4 (CPU+GPU)** | ~0.15 ms  | **~0.0002x** ⭐     |
+| 2  | **Hybrid CPU+GPU (Metal 3)** | ~0.24 ms  | ~0.0003x            |
+| 3  | **Metal GPU**                |  ~0.3 ms  | ~0.0004x            |
+| 4  | **C++ NEON (SIMD + threads)**|  ~0.4 ms  | ~0.0005x            |
+| 5  | NumPy (vectorized, unrolled) |   665 ms  | 0.83x               |
 | 4  | ArrowDatafusion (SQL)        |   797 ms  | 1.00x (baseline)    |
 | 5  | DuckDB (SQL)                 | 1,364 ms  | 1.71x slower        |
 | 6  | FasterPybrot                 | 2,850 ms  | 3.58x slower        |
@@ -159,10 +160,15 @@ route through a GMP decimal runtime that made the naive version 25× slower.
 Compiled/JIT entries pay build & warm-up at import, outside the timed path;
 managed runtimes run as persistent warm workers.
 
-**Winner overall: Hybrid CPU+GPU** ([`hybridbrot.mm`](hybridbrot.mm)) — the Metal
-GPU and all 14 CPU cores compute disjoint rows of the same unified-memory frame
-concurrently, ~**4100x faster than optimized NumPy**. GPU-only crown:
-[`metalbrot.mm`](metalbrot.mm); CPU-only crown: [`objcbrot.m`](objcbrot.m).
+**Winner overall: Hybrid on the WWDC 2026 Metal 4 command model**
+([`hybrid4brot.mm`](hybrid4brot.mm)) — the same CPU+GPU hybrid, but the GPU half is
+submitted through Metal 4 (`MTL4CommandQueue`, `MTL4ArgumentTable` bound by GPU
+address, `MTLResidencySet`). The cheaper per-dispatch submit shifts the optimal
+split to 76 % GPU and lands **~0.15 ms — a robust ~31 % faster than the Metal 3
+hybrid (0.24 ms), ~6 500× faster than optimized NumPy** (wins 90 % of paired
+samples, bit-identical output). Prior hybrid: [`hybridbrot.mm`](hybridbrot.mm)
+(Metal 3, 0.24 ms); GPU-only crown: [`metalbrot.mm`](metalbrot.mm); CPU-only
+crown: [`objcbrot.m`](objcbrot.m).
 
 **Winner SQL: ArrowDatafusion** - Incredibly fast, nearly matching optimized NumPy performance!
 

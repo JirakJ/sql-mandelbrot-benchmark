@@ -19,7 +19,9 @@ MAX_ITERATIONS = 256
 
 # Benchmark registry: (name, module, function)
 BENCHMARKS = [
-    ("Hybrid CPU+GPU", "hybridbrot", "run_hybridbrot"),
+    ("Hybrid Metal 4 (CPU+GPU)", "hybrid4brot", "run_hybrid4brot"),
+    ("Hybrid CPU+GPU (Metal 3)", "hybridbrot", "run_hybridbrot"),
+    ("Metal 4 GPU", "metal4brot", "run_metal4brot"),
     ("Metal GPU", "metalbrot", "run_metalbrot"),
     ("C++ NEON (SIMD+threads)", "cppbrot", "run_cppbrot"),
     ("ARM64 Assembly (NEON)", "asmbrot", "run_asmbrot"),

@@ -47,7 +47,8 @@ LADDER = [
     ("NumPy (vectorized)", 972.0, False),
     ("C++ NEON (CPU)", 0.39, True),
     ("Metal (GPU)", 0.30, True),
-    ("Hybrid CPU+GPU", 0.24, True),
+    ("Hybrid — Metal 3", 0.24, True),
+    ("Hybrid — Metal 4", 0.15, True),
 ]
 
 fig, ax = plt.subplots(figsize=(10, 5.6))
@@ -80,6 +81,7 @@ JOURNEY = [
     ("v2: + y-symmetry\n+ amortized checks", 0.39, TEAL),
     ("v3: Metal GPU\n+ zero-copy", 0.30, "#5eead4"),
     ("v4: hybrid\nCPU + GPU together", 0.24, "#99f6e4"),
+    ("v5: Metal 4\ncommand model", 0.15, "#ccfbf1"),
 ]
 fig, ax = plt.subplots(figsize=(10, 5.2))
 xs = range(len(JOURNEY))
@@ -93,7 +95,7 @@ ax.set_title("Optimization journey — same workload, same machine", pad=14, fon
 for x, v in zip(xs, vals):
     ax.text(x, v * 1.35, f"{v:g} ms", ha="center", fontsize=12, color=TEXT,
             fontweight="bold")
-speedups = ["1×", "1 230×", "2 490×", "3 240×", "4 120×"]
+speedups = ["1×", "1 230×", "2 490×", "3 240×", "4 120×", "6 480×"]
 for x, (v, s) in enumerate(zip(vals, speedups)):
     ax.text(x, v * 0.35, s, ha="center", fontsize=11, color=BG if x else TEXT,
             fontweight="bold")

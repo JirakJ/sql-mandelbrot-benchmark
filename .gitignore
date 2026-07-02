@@ -227,3 +227,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+
+measure_*.py
+libmetal4brot.dylib
+libhybrid4brot.dylib
