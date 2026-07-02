@@ -126,45 +126,65 @@ fig.tight_layout()
 fig.savefig(f"{OUT}/chart-scaling.png", dpi=2.0 * 72, facecolor=BG)
 plt.close(fig)
 
-# Language shootout (best-of-15, same algorithm: SIMD/threads/symmetry/early-out)
-# teal = explicit SIMD (GPU / intrinsics / SIMD API / hand asm), blue = scalar
+# Language shootout (best-of-N, same algorithm: SIMD/threads/symmetry/early-out)
+# teal = explicit SIMD (GPU / intrinsics / vector types / SIMD API / hand asm), blue = scalar
 LANGS = [
     ("Metal (GPU)", 0.31, True),
+    ("Objective-C (ext_vector)", 0.34, True),
+    ("Odin (#simd)", 0.35, True),
     ("C++ (NEON intrinsics)", 0.39, True),
     ("Swift (SIMD8)", 0.39, True),
+    ("D (core.simd, LDC)", 0.39, True),
     ("Rust (NEON + rayon)", 0.40, True),
+    ("V (shaped autovec)", 0.41, False),
     ("Zig (@Vector)", 0.45, True),
     ("ARM64 assembly (NEON)", 0.54, True),
+    ("WebAssembly (WAT SIMD128)", 0.64, True),
     ("C (autovectorized)", 1.23, False),
     ("Java (Vector API)", 1.26, True),
+    ("Scala (Vector API)", 1.26, True),
     ("Kotlin (Vector API)", 1.30, True),
     ("Nim (threads)", 1.35, False),
     ("Fortran (OpenMP)", 1.38, False),
+    ("Futhark (multicore)", 1.41, False),
     ("Go (goroutines)", 1.41, False),
+    ("Groovy (Vector API)", 1.47, True),
     ("C# (AdvSimd)", 1.67, True),
     ("Haskell (GHC threads)", 1.94, False),
+    ("Free Pascal (threads)", 1.95, False),
+    ("Chapel (forall)", 1.99, False),
+    ("Clojure (JVM primitives)", 2.10, False),
+    ("Haxe (C++ target)", 2.12, False),
     ("JavaScript (Node workers)", 2.19, False),
+    ("F# (AdvSimd)", 2.44, True),
     ("Common Lisp (SBCL)", 2.70, False),
     ("Dart (isolates)", 2.70, False),
+    ("Chez Scheme (fl ops)", 2.77, False),
     ("OCaml (domains)", 2.82, False),
+    ("PHP (JIT, process pool)", 2.95, False),
     ("Julia (threads)", 3.55, False),
     ("Crystal (MT fibers)", 8.94, False),
+    ("Elixir (BEAM)", 17.52, False),
     ("LuaJIT (process pool)", 19.43, False),
     ("Ruby (YJIT + Ractors)", 35.61, False),
+    ("R (vectorized)", 108.47, False),
+    ("Perl (process pool)", 153.54, False),
+    ("COBOL (Q28 fixed-point)", 201.28, False),
+    ("AWK (gawk pool)", 277.65, False),
 ]
-fig, ax = plt.subplots(figsize=(10, 9.6))
+fig, ax = plt.subplots(figsize=(10.5, 15.5))
 names = [x[0] for x in LANGS][::-1]
 vals = [x[1] for x in LANGS][::-1]
 colors = [TEAL if x[2] else BLUE for x in LANGS][::-1]
 bars = ax.barh(names, vals, color=colors, height=0.62)
 ax.set_xscale("log")
 ax.set_xlabel("time, ms — log scale (lower is better)")
-ax.set_title("22 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
+ax.set_title("42 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
              pad=14, fontsize=14)
 for b, v in zip(bars, vals):
     ax.text(b.get_width() * 1.09, b.get_y() + b.get_height() / 2, f"{v:.2f} ms",
             va="center", fontsize=10, color=TEXT)
-ax.set_xlim(0.25, 90)
+ax.set_xlim(0.25, 700)
 ax.grid(axis="x", which="both")
 ax.set_axisbelow(True)
 fig.tight_layout()

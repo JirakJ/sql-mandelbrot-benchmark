@@ -242,6 +242,20 @@
       font-size: 19px; max-width: 760px;
     }
     .callout b { font-family: var(--mono); color: var(--teal-soft); }
+    /* source-code cards with per-language limits */
+    .srcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 34px; }
+    .srcchip {
+      display: block; background: var(--panel-2); border: 1px solid var(--line);
+      border-radius: 14px; padding: 16px 18px; color: var(--text);
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    .srcchip:hover { border-color: var(--teal); transform: translateY(-2px); text-decoration: none; }
+    .srcchip .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .srcchip .top b { font-size: 14.5px; font-weight: 700; }
+    .srcchip .file { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .srcchip:hover .file { color: var(--teal-soft); }
+    .srcchip .lim { font-size: 12.8px; color: var(--muted); margin-top: 7px; line-height: 1.5; }
+    .srcchip .lim b { color: var(--blue-soft); font-weight: 600; font-size: 12.8px; }
     /* failures */
     .fails { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 44px; }
     @media (max-width: 760px) { .fails { grid-template-columns: 1fr; } }
@@ -490,19 +504,79 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
 <section id="languages">
   <div class="wrap">
     <div class="kicker reveal">Language shootout</div>
-    <h2 class="reveal">Twenty-two languages, one algorithm</h2>
+    <h2 class="reveal">Forty-two languages, one algorithm</h2>
     <p class="lede reveal">Same SIMD strategy, same early-outs, same symmetry, same escape semantics —
-      reimplemented in twenty-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
+      reimplemented in forty-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-languages.png" alt="Language shootout, 22 languages from Metal 0.31 ms to Ruby 35.6 ms, log scale" loading="lazy">
-      <figcaption>Best of 15 runs, log scale. Teal = explicit SIMD (GPU, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
+      <img src="assets/chart-languages.png" alt="Language shootout, 42 languages from Metal 0.31 ms to AWK 278 ms, log scale" loading="lazy">
+      <figcaption>Best-of-N runs, log scale. Teal = explicit SIMD (GPU, vector types, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
     </figure>
     <div class="callout reveal">
-      <b>Swift ties C++</b>, Rust and Zig sit within 15 % — and <b>hand-written assembly loses ~35 %</b>
-      to compiler + intrinsics. LLVM schedules the M4 pipeline better than a human: write intrinsics,
-      let the compiler do the scheduling. SIMD APIs on managed runtimes deliver too: Java, Kotlin and
-      C# all land within ~4× of native, ahead of scalar Fortran and Go.
+      <b>Objective-C is the fastest CPU entry</b> — generic clang <code>ext_vector_type</code> beat
+      hand-picked NEON intrinsics. The top seven all compile through LLVM; <b>hand-written assembly
+      loses ~55 %</b> to the best of them. <b>WebAssembly beats plain C.</b> Vector-API JVMs cluster
+      within ~4× of native. And the COBOL entry only became viable after swapping floats for Q28
+      fixed-point — its float math routes through a decimal library.
     </div>
+
+    <h3 class="reveal" style="margin-top:56px; font-size:21px; font-weight:700">Read the source — and where each language hits its ceiling</h3>
+    <p class="reveal" style="color:var(--muted); font-size:15px; margin-top:8px">Each card links to the exact file in the GitHub repository, with an honest note on what limits that language on this workload.</p>
+    <div class="srcgrid reveal" id="srcgrid"></div>
+    <script>
+      const GH = "https://github.com/jirakj/sql-mandelbrot-benchmark/blob/master/";
+      const SOURCES = [
+        ["Metal (GPU)", "metalbrot.mm", "<b>Limit:</b> ~0.2 ms fixed command-buffer latency — dispatch overhead dominates anything smaller than a few megapixels."],
+        ["C++", "cppbrot.cpp", "<b>Limit:</b> none on this hardware — the reference for CPU peak. The cost is manual memory & thread discipline."],
+        ["Swift", "swiftbrot.swift", "<b>Limit:</b> ties C++ only while you stay in SIMD types and avoid ARC in the hot path; one retained object per pixel would end it."],
+        ["Rust", "rustbrot/src/lib.rs", "<b>Limit:</b> matches C++ — but NEON intrinsics are unsafe blocks, so the famed safety story pauses exactly where the speed lives."],
+        ["Zig", "zigbrot.zig", "<b>Limit:</b> @Vector codegen is excellent; ecosystem is the ceiling — std APIs shift between releases (0.16 moved Mutex under std.Io mid-project)."],
+        ["ARM64 assembly", "asmbrot.s", "<b>Limit:</b> the human. LLVM schedules the M4 pipeline ~35 % better than hand-written NEON — asm is for reading compiler output, not beating it."],
+        ["C", "cbrot.c", "<b>Limit:</b> the autovectorizer refuses early-exit loops, so idiomatic C runs scalar — 3× slower. Restructure to sticky masks (see V) or hand it intrinsics (see C++)."],
+        ["Java", "JavaBrot.java", "<b>Limit:</b> Vector API is still an incubator; plus GC pauses and a warm-up tax that only a persistent JVM hides."],
+        ["Kotlin", "KotlinBrot.kt", "<b>Limit:</b> everything Java has, plus one more layer — peak Kotlin numerics is literally calling Java's Vector API."],
+        ["Nim", "nimbrot.nim", "<b>Limit:</b> compiles to scalar C, so it inherits C's autovectorization wall; no stable SIMD story in stdlib."],
+        ["Fortran", "fortranbrot.f90", "<b>Limit:</b> the compiler owns vectorization and declines here; modern-CPU tuning (-mcpu=apple-m4) lags in gfortran."],
+        ["Go", "gobrot_src/gobrot.go", "<b>Limit:</b> no SIMD intrinsics by design — goroutines give you the cores, the ALUs stay 4× underused."],
+        ["C#", "csharpbrot/Program.cs", "<b>Limit:</b> AdvSimd works, but JIT codegen trails LLVM ~4× here; brew .NET's broken apphost is a deployment papercut."],
+        ["F#", "fsharpbrot/Program.fs", "<b>Limit:</b> same runtime ceiling as C# — functional style must be abandoned in the kernel for mutable SIMD loops."],
+        ["Scala", "ScalaBrot.scala", "<b>Limit:</b> JVM ceiling shared with Java/Kotlin, plus classpath gymnastics to even launch outside sbt."],
+        ["Haskell", "haskellbrot.hs", "<b>Limit:</b> peak GHC means abandoning laziness — bang patterns, unboxed types, mutable arrays. Idiomatic Haskell it is not."],
+        ["OCaml", "ocamlbrot.ml", "<b>Limit:</b> boxed floats outside local loops and no SIMD access; OCaml 5 domains parallelize what the codegen can't accelerate."],
+        ["D", "dbrot.d", "<b>Limit:</b> LDC's LLVM backend is first-rate; the D ecosystem and split runtimes are what you pay, not codegen."],
+        ["Odin", "odinbrot.odin", "<b>Limit:</b> hard to name — 0.35 ms, second-fastest CPU entry, 4 % behind Objective-C. The cost is a young ecosystem and the context dance any C-ABI export needs."],
+        ["V", "vbrot.v", "<b>Limit:</b> the toolchain, not the codegen — -shared needs -gc none to link, flags shift between releases. Shaped right (sticky masks, no early exit), its C backend vectorizes to the native tier."],
+        ["Free Pascal", "pascalbrot.pas", "<b>Limit:</b> solid native scalar codegen frozen in time — no SIMD path, ARM64 tuning is minimal."],
+        ["Chapel", "chapelbrot.chpl", "<b>Limit:</b> forall gives painless parallelism; per-task overhead and no explicit SIMD keep it off the native tier."],
+        ["Futhark", "futharkbrot.fut", "<b>Limit:</b> brilliant for pure data-parallel kernels — but it's a kernel language, not an application language; the host still exists."],
+        ["Objective-C", "objcbrot.m", "<b>Limit:</b> none we could measure — 0.34 ms, the fastest CPU entry, via clang ext_vector types. The catch: one objc_msgSend per pixel would end it; peak ObjC means not using ObjC in the loop."],
+        ["WebAssembly (WAT)", "wasmbrot.wat", "<b>Limit:</b> SIMD128 is 4-lane only, no fused multiply-add, bounds-checked memory — a portable ~2× tax vs native NEON."],
+        ["JavaScript", "jsbrot.mjs", "<b>Limit:</b> V8 JIT is heroic, but no SIMD without WASM and doubles-only arithmetic; workers + SAB are the only route to cores."],
+        ["Dart", "dartbrot.dart", "<b>Limit:</b> AOT is respectable; isolates share nothing, so every frame pays serialization instead of shared memory."],
+        ["Julia", "juliabrot.jl", "<b>Limit:</b> 'looks like Python, runs like C' holds per-core only if you fight allocations; JIT warm-up needs hiding in a worker."],
+        ["Common Lisp", "sbclbrot.lisp", "<b>Limit:</b> SBCL with type declarations beats most scripting runtimes — but declarations everywhere is the price, and no SIMD."],
+        ["Chez Scheme", "chezbrot.ss", "<b>Limit:</b> superb native compiler for a dynamic language; flonum boxing and no vector ISA access cap it."],
+        ["Clojure", "clojurebrot.clj", "<b>Limit:</b> immutable idioms fight numeric hot loops; peak Clojure here is unchecked-math + primitive arrays — Java in parentheses."],
+        ["Groovy", "groovybrot.groovy", "<b>Limit:</b> @CompileStatic recovers most of Java's speed; without it, dynamic dispatch costs an order of magnitude."],
+        ["Crystal", "crystalbrot.cr", "<b>Limit:</b> Ruby syntax at native speed per core — but the MT fiber scheduler showed 2× bimodal stalls under load in our runs."],
+        ["LuaJIT", "luajitbrot.lua", "<b>Limit:</b> the best single-core JIT ever shipped, trapped in a single-threaded VM — parallelism means process pools and pipes."],
+        ["Ruby", "rubybrot.rb", "<b>Limit:</b> YJIT accelerates, Ractors parallelize — yet boxed floats and per-frame Ractor coordination keep it ~90× off native."],
+        ["PHP", "phpbrot.php", "<b>Limit:</b> the JIT helps arithmetic, but stock PHP has no threads — a process pool is the only way to touch 14 cores."],
+        ["Elixir", "elixirbrot.exs", "<b>Limit:</b> BEAM schedulers parallelize beautifully; boxed floats and immutable binaries make raw number-crunching its worst discipline."],
+        ["R", "rbrot.R", "<b>Limit:</b> vectorized whole-matrix ops are the only fast path, and copy-on-modify semantics tax every masked update — 108 ms, ~9× behind NumPy's identical strategy."],
+        ["Perl", "perlbrot.pl", "<b>Limit:</b> no JIT, boxed scalars (SVs) — arithmetic runs on interpreter opcodes (154 ms across 14 processes); precomputed column tables were the biggest lever."],
+        ["COBOL", "cobolbrot.cob", "<b>Limit:</b> COMP-2 floats route through a GMP decimal runtime — 50 s naive. Shipping Q28 fixed-point on BINARY-DOUBLE bought 25×. Built for ledgers; it fights every FLOP."],
+        ["AWK", "awkbrot.awk", "<b>Limit:</b> a text-processing language doing numerics — every value a string-number dual, every op interpreted; 278 ms with 14 gawk workers is its honest ceiling."],
+        ["Haxe", "haxebrot.hx", "<b>Limit:</b> speed depends entirely on the target backend (C++ here); the abstraction that makes it portable hides the knobs that make it fast."],
+        ["NumPy", "numpybrot.py", "<b>Limit:</b> every masked update materializes full temporaries — memory bandwidth becomes the bottleneck long before ALUs."],
+        ["Python", "pybrot.py", "<b>Limit:</b> the interpreter: ~5 s of boxed-float bytecode dispatch for what NEON does in 0.4 ms."],
+        ["SQL — DuckDB", "duckbrot.py", "<b>Limit:</b> recursive CTEs materialize every iteration for every pixel — brilliant engine, wrong computational model."],
+        ["SQL — DataFusion", "arrow_datafusion.py", "<b>Limit:</b> fastest recursive-CTE engine we measured, still 3 000× off native — set-based semantics can't early-exit per pixel."],
+        ["SQL — SQLite", "sqlitebrot.py", "<b>Limit:</b> a row-at-a-time interpreter asked to iterate 250 M times — it finishes, which is the most that can be said."],
+      ];
+      document.getElementById("srcgrid").innerHTML = SOURCES.map(([n, f, lim]) =>
+        `<a class="srcchip" href="${GH}${f}" target="_blank" rel="noopener"><span class="top"><b>${n}</b><span class="file">${f.split("/").pop()}</span></span><span class="lim">${lim}</span></a>`
+      ).join("");
+    </script>
   </div>
 </section>
 

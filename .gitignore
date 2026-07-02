@@ -31,6 +31,27 @@ csharpbrot/bin/
 csharpbrot/obj/
 *.fasl
 sbclbrot_bin
+pascalbrot_bin
+*.ppu
+odinbrot_bin
+vbrot_bin
+fsharpbrot/bin/
+fsharpbrot/obj/
+scalabrot_classes/
+*.tasty
+elixirbrot_bin
+*.wasm
+chapelbrot_bin
+futharkbrot_bin
+futharkbrot.c
+objcbrot_bin
+clojurebrot_classes/
+groovybrot_classes/
+*.so.sig
+chezbrot_bin
+haxebrot_build/
+haxebrot_bin
+cobolbrot_bin
 
 # Distribution / packaging
 .Python

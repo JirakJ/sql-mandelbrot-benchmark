@@ -50,44 +50,66 @@ Current results on 1400x800 pixels, 256 max iterations, Macbook Pro M4 Max:
 
 ## Language Shootout
 
-Twenty-two languages, one identical algorithm (float SIMD where available, all
-cores, cardioid + period-2 bulb early-out, y-axis symmetry). Best of 15 runs,
+Forty-two languages, one identical algorithm (float SIMD where available, all
+cores, cardioid + period-2 bulb early-out, y-axis symmetry). Best-of-N runs,
 Apple M4 Max:
 
 | # | Language | Technique | Time |
 |---|----------|-----------|------|
 | 1 | Metal ([metalbrot.mm](metalbrot.mm)) | GPU compute shader, zero-copy | **0.31 ms** |
-| 2 | C++ ([cppbrot.cpp](cppbrot.cpp)) | NEON intrinsics + GCD | 0.39 ms |
-| 3 | Swift ([swiftbrot.swift](swiftbrot.swift)) | SIMD8&lt;Float&gt; + concurrentPerform | 0.39 ms |
-| 4 | Rust ([rustbrot/](rustbrot/)) | NEON intrinsics + rayon | 0.40 ms |
-| 5 | Zig ([zigbrot.zig](zigbrot.zig)) | @Vector(8,f32) + GCD | 0.45 ms |
-| 6 | ARM64 asm ([asmbrot.s](asmbrot.s)) | hand-written NEON + GCD shim | 0.54 ms |
-| 7 | C ([cbrot.c](cbrot.c)) | scalar, `-O3` autovectorization only | 1.23 ms |
-| 8 | Java ([JavaBrot.java](JavaBrot.java)) | Vector API + parallel streams | 1.26 ms |
-| 9 | Kotlin ([KotlinBrot.kt](KotlinBrot.kt)) | Vector API + parallel streams | 1.30 ms |
-| 10 | Nim ([nimbrot.nim](nimbrot.nim)) | thread pool, `-d:danger` | 1.35 ms |
-| 11 | Fortran ([fortranbrot.f90](fortranbrot.f90)) | OpenMP | 1.38 ms |
-| 12 | Go ([gobrot_src/](gobrot_src/)) | goroutines, c-shared | 1.41 ms |
-| 13 | C# ([csharpbrot/](csharpbrot/)) | AdvSimd intrinsics + Parallel.For | 1.67 ms |
-| 14 | Haskell ([haskellbrot.hs](haskellbrot.hs)) | GHC -threaded, unboxed loop | 1.94 ms |
-| 15 | JavaScript ([jsbrot.mjs](jsbrot.mjs)) | Node worker_threads + SAB | 2.19 ms |
-| 16 | Common Lisp ([sbclbrot.lisp](sbclbrot.lisp)) | SBCL sb-thread, typed floats | 2.70 ms |
-| 17 | Dart ([dartbrot.dart](dartbrot.dart)) | AOT + isolate pool | 2.70 ms |
-| 18 | OCaml ([ocamlbrot.ml](ocamlbrot.ml)) | OCaml 5 domain pool | 2.82 ms |
-| 19 | Julia ([juliabrot.jl](juliabrot.jl)) | @threads | 3.55 ms |
-| 20 | Crystal ([crystalbrot.cr](crystalbrot.cr)) | multi-threaded fibers | 8.94 ms |
-| 21 | LuaJIT ([luajitbrot.lua](luajitbrot.lua)) | persistent process pool | 19.43 ms |
-| 22 | Ruby ([rubybrot.rb](rubybrot.rb)) | YJIT + Ractor pool | 35.61 ms |
+| 2 | Objective-C ([objcbrot.m](objcbrot.m)) | clang ext_vector + GCD — **CPU champion** | 0.34 ms |
+| 3 | Odin ([odinbrot.odin](odinbrot.odin)) | #simd[8]f32 + thread pool | 0.35 ms |
+| 4 | C++ ([cppbrot.cpp](cppbrot.cpp)) | NEON intrinsics + GCD | 0.39 ms |
+| 5 | Swift ([swiftbrot.swift](swiftbrot.swift)) | SIMD8&lt;Float&gt; + concurrentPerform | 0.39 ms |
+| 6 | D ([dbrot.d](dbrot.d)) | core.simd + LLVM FMA, LDC | 0.39 ms |
+| 7 | Rust ([rustbrot/](rustbrot/)) | NEON intrinsics + rayon | 0.40 ms |
+| 8 | V ([vbrot.v](vbrot.v)) | shaped autovectorization, thread pool | 0.41 ms |
+| 9 | Zig ([zigbrot.zig](zigbrot.zig)) | @Vector(8,f32) + GCD | 0.45 ms |
+| 10 | ARM64 asm ([asmbrot.s](asmbrot.s)) | hand-written NEON + GCD shim | 0.54 ms |
+| 11 | WebAssembly ([wasmbrot.wat](wasmbrot.wat)) | hand-written WAT, SIMD128, wasmtime | 0.64 ms |
+| 12 | C ([cbrot.c](cbrot.c)) | scalar, `-O3` autovectorization only | 1.23 ms |
+| 13 | Java ([JavaBrot.java](JavaBrot.java)) | Vector API + parallel streams | 1.26 ms |
+| 14 | Scala ([ScalaBrot.scala](ScalaBrot.scala)) | Vector API + parallel streams | 1.26 ms |
+| 15 | Kotlin ([KotlinBrot.kt](KotlinBrot.kt)) | Vector API + parallel streams | 1.30 ms |
+| 16 | Nim ([nimbrot.nim](nimbrot.nim)) | thread pool, `-d:danger` | 1.35 ms |
+| 17 | Fortran ([fortranbrot.f90](fortranbrot.f90)) | OpenMP | 1.38 ms |
+| 18 | Futhark ([futharkbrot.fut](futharkbrot.fut)) | data-parallel, multicore backend | 1.41 ms |
+| 19 | Go ([gobrot_src/](gobrot_src/)) | goroutines, c-shared | 1.41 ms |
+| 20 | Groovy ([GroovyBrot.groovy](GroovyBrot.groovy)) | @CompileStatic + Vector API | 1.47 ms |
+| 21 | C# ([csharpbrot/](csharpbrot/)) | AdvSimd intrinsics + Parallel.For | 1.67 ms |
+| 22 | Haskell ([haskellbrot.hs](haskellbrot.hs)) | GHC -threaded, unboxed loop | 1.94 ms |
+| 23 | Free Pascal ([pascalbrot.pas](pascalbrot.pas)) | RTLEvent thread pool | 1.95 ms |
+| 24 | Chapel ([chapelbrot.chpl](chapelbrot.chpl)) | forall + dynamic iterator | 1.99 ms |
+| 25 | Clojure ([clojurebrot.clj](clojurebrot.clj)) | unchecked primitives, thread pool | 2.10 ms |
+| 26 | Haxe ([HaxeBrot.hx](HaxeBrot.hx)) | C++ target, sys.thread pool | 2.12 ms |
+| 27 | JavaScript ([jsbrot.mjs](jsbrot.mjs)) | Node worker_threads + SAB | 2.19 ms |
+| 28 | F# ([fsharpbrot/](fsharpbrot/)) | AdvSimd intrinsics + Parallel.For | 2.44 ms |
+| 29 | Common Lisp ([sbclbrot.lisp](sbclbrot.lisp)) | SBCL sb-thread, typed floats | 2.70 ms |
+| 30 | Dart ([dartbrot.dart](dartbrot.dart)) | AOT + isolate pool | 2.70 ms |
+| 31 | Chez Scheme ([chezbrot.ss](chezbrot.ss)) | fl-ops, fork-thread pool | 2.77 ms |
+| 32 | OCaml ([ocamlbrot.ml](ocamlbrot.ml)) | OCaml 5 domain pool | 2.82 ms |
+| 33 | PHP ([phpbrot.php](phpbrot.php)) | opcache JIT, process pool | 2.95 ms |
+| 34 | Julia ([juliabrot.jl](juliabrot.jl)) | @threads | 3.55 ms |
+| 35 | Crystal ([crystalbrot.cr](crystalbrot.cr)) | multi-threaded fibers | 8.94 ms |
+| 36 | Elixir ([elixirbrot.exs](elixirbrot.exs)) | BEAM Task.async_stream | 17.52 ms |
+| 37 | LuaJIT ([luajitbrot.lua](luajitbrot.lua)) | persistent process pool | 19.43 ms |
+| 38 | Ruby ([rubybrot.rb](rubybrot.rb)) | YJIT + Ractor pool | 35.61 ms |
+| 39 | R ([rbrot.R](rbrot.R)) | vectorized whole-grid (NumPy-style) | 108.5 ms |
+| 40 | Perl ([perlbrot.pl](perlbrot.pl)) | process pool | 153.5 ms |
+| 41 | COBOL ([cobolbrot.cob](cobolbrot.cob)) | Q28 fixed-point, process pool | 201.3 ms |
+| 42 | AWK ([awkbrot.awk](awkbrot.awk)) | gawk process pool, binary %c | 277.6 ms |
 
-Notable: **Swift ties C++**, Rust and Zig sit within 15 %, and **hand-written
-assembly loses to compiler + intrinsics** — modern compilers schedule the M4
-pipeline better than a human. Plain C shows what you give up without intrinsics:
-3× (the early-exit escape loop defeats the autovectorizer). SIMD APIs on managed
-runtimes work: Java/Kotlin Vector API and C# AdvSimd all land within ~4× of
-native. Even Common Lisp beats "modern" scripting runtimes. Compiled/JIT entries
-pay build & warm-up at import, outside the timed path; managed runtimes run as
-persistent warm workers (Crystal's spread reflects scheduler bimodality we
-measured honestly rather than hid).
+Notable: **Objective-C (clang `ext_vector_type`) is the fastest CPU entry** —
+generic clang vector extensions out-scheduled hand-picked NEON intrinsics.
+**Odin** sits 4 % behind; Swift/D/Rust/V within 20 %. **Hand-written assembly
+loses ~55 % to the best compiled entries** — compilers model the M4 pipeline
+better than humans. **WebAssembly at 0.64 ms** beats plain C: portable SIMD128
+with a ~2× tax on native. Vector API entries (Java/Scala/Kotlin/Groovy) cluster
+at 1.3–1.5 ms. The scripting tail (Perl/COBOL/AWK at 150–280 ms) is still
+~250 000× faster than SQLite's recursive CTE. COBOL required fixed-point Q28
+arithmetic — GnuCOBOL floats route through a GMP decimal runtime that made the
+naive version 25× slower. Compiled/JIT entries pay build & warm-up at import,
+outside the timed path; managed runtimes run as persistent warm workers.
 
 **Winner overall: Metal GPU** ([`metalbrot.mm`](metalbrot.mm)) — a runtime-compiled
 compute shader with zero-copy unified memory, ~**3000x faster than the SQL baseline**.
