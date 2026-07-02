@@ -268,6 +268,7 @@
       <a href="#platform">Platform</a>
       <a href="#casestudy">Case study</a>
       <a href="#gpu">CPU vs GPU</a>
+      <a href="#languages">Languages</a>
       <a href="#failures">What failed</a>
       <a href="#reproduce">Reproduce</a>
       <a href="https://www.jakubjirak.com">jakubjirak.com ↗</a>
@@ -482,6 +483,24 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
     <div class="callout reveal">
       72 megapixels of 256-iteration Mandelbrot in 1.87 ms is <b>≈ 38 billion pixel-iterations per second</b> —
       on a laptop, on battery, in silence.
+    </div>
+  </div>
+</section>
+
+<section id="languages">
+  <div class="wrap">
+    <div class="kicker reveal">Language shootout</div>
+    <h2 class="reveal">Twelve languages, one algorithm</h2>
+    <p class="lede reveal">Same SIMD strategy, same early-outs, same symmetry, same escape semantics —
+      reimplemented in twelve languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
+    <figure class="chart reveal">
+      <img src="assets/chart-languages.png" alt="Language shootout: Metal 0.31, C++ 0.39, Swift 0.39, Rust 0.40, asm 0.54, C 1.23, Java 1.26, Fortran 1.38, Go 1.41, JS 2.19, Dart 2.70, Julia 3.55 ms" loading="lazy">
+      <figcaption>Best of 15 runs. Teal = SIMD via GPU, intrinsics or hand-written assembly; blue = scalar / autovectorized / managed runtime.</figcaption>
+    </figure>
+    <div class="callout reveal">
+      <b>Swift ties C++</b>, Rust is 3 % behind — and <b>hand-written assembly loses ~35 %</b> to
+      compiler + intrinsics. LLVM schedules the M4 pipeline better than a human: write intrinsics,
+      let the compiler do the scheduling. Java's Vector API lands the JVM within 3.2× of native.
     </div>
   </div>
 </section>
