@@ -50,8 +50,9 @@ Current results on 1400x800 pixels, 256 max iterations, Macbook Pro M4 Max:
 
 ## Language Shootout
 
-Twelve languages, one identical algorithm (float SIMD where available, all cores,
-cardioid + period-2 bulb early-out, y-axis symmetry). Best of 15 runs, Apple M4 Max:
+Twenty-two languages, one identical algorithm (float SIMD where available, all
+cores, cardioid + period-2 bulb early-out, y-axis symmetry). Best of 15 runs,
+Apple M4 Max:
 
 | # | Language | Technique | Time |
 |---|----------|-----------|------|
@@ -59,21 +60,34 @@ cardioid + period-2 bulb early-out, y-axis symmetry). Best of 15 runs, Apple M4 
 | 2 | C++ ([cppbrot.cpp](cppbrot.cpp)) | NEON intrinsics + GCD | 0.39 ms |
 | 3 | Swift ([swiftbrot.swift](swiftbrot.swift)) | SIMD8&lt;Float&gt; + concurrentPerform | 0.39 ms |
 | 4 | Rust ([rustbrot/](rustbrot/)) | NEON intrinsics + rayon | 0.40 ms |
-| 5 | ARM64 asm ([asmbrot.s](asmbrot.s)) | hand-written NEON + GCD shim | 0.54 ms |
-| 6 | C ([cbrot.c](cbrot.c)) | scalar, `-O3` autovectorization only | 1.23 ms |
-| 7 | Java ([JavaBrot.java](JavaBrot.java)) | Vector API + parallel streams | 1.26 ms |
-| 8 | Fortran ([fortranbrot.f90](fortranbrot.f90)) | OpenMP | 1.38 ms |
-| 9 | Go ([gobrot_src/](gobrot_src/)) | goroutines, c-shared | 1.41 ms |
-| 10 | JavaScript ([jsbrot.mjs](jsbrot.mjs)) | Node worker_threads + SAB | 2.19 ms |
-| 11 | Dart ([dartbrot.dart](dartbrot.dart)) | AOT + isolate pool | 2.70 ms |
-| 12 | Julia ([juliabrot.jl](juliabrot.jl)) | @threads | 3.55 ms |
+| 5 | Zig ([zigbrot.zig](zigbrot.zig)) | @Vector(8,f32) + GCD | 0.45 ms |
+| 6 | ARM64 asm ([asmbrot.s](asmbrot.s)) | hand-written NEON + GCD shim | 0.54 ms |
+| 7 | C ([cbrot.c](cbrot.c)) | scalar, `-O3` autovectorization only | 1.23 ms |
+| 8 | Java ([JavaBrot.java](JavaBrot.java)) | Vector API + parallel streams | 1.26 ms |
+| 9 | Kotlin ([KotlinBrot.kt](KotlinBrot.kt)) | Vector API + parallel streams | 1.30 ms |
+| 10 | Nim ([nimbrot.nim](nimbrot.nim)) | thread pool, `-d:danger` | 1.35 ms |
+| 11 | Fortran ([fortranbrot.f90](fortranbrot.f90)) | OpenMP | 1.38 ms |
+| 12 | Go ([gobrot_src/](gobrot_src/)) | goroutines, c-shared | 1.41 ms |
+| 13 | C# ([csharpbrot/](csharpbrot/)) | AdvSimd intrinsics + Parallel.For | 1.67 ms |
+| 14 | Haskell ([haskellbrot.hs](haskellbrot.hs)) | GHC -threaded, unboxed loop | 1.94 ms |
+| 15 | JavaScript ([jsbrot.mjs](jsbrot.mjs)) | Node worker_threads + SAB | 2.19 ms |
+| 16 | Common Lisp ([sbclbrot.lisp](sbclbrot.lisp)) | SBCL sb-thread, typed floats | 2.70 ms |
+| 17 | Dart ([dartbrot.dart](dartbrot.dart)) | AOT + isolate pool | 2.70 ms |
+| 18 | OCaml ([ocamlbrot.ml](ocamlbrot.ml)) | OCaml 5 domain pool | 2.82 ms |
+| 19 | Julia ([juliabrot.jl](juliabrot.jl)) | @threads | 3.55 ms |
+| 20 | Crystal ([crystalbrot.cr](crystalbrot.cr)) | multi-threaded fibers | 8.94 ms |
+| 21 | LuaJIT ([luajitbrot.lua](luajitbrot.lua)) | persistent process pool | 19.43 ms |
+| 22 | Ruby ([rubybrot.rb](rubybrot.rb)) | YJIT + Ractor pool | 35.61 ms |
 
-Notable: **Swift ties C++**, Rust is a hair behind, and **hand-written assembly
-loses to compiler + intrinsics** — modern compilers schedule the M4 pipeline better
-than a human. Plain C shows what you give up without intrinsics: 3× (the early-exit
-escape loop defeats the autovectorizer). Managed runtimes (Java Vector API!) land
-within 4× of native. Compiled/JIT entries pay their build & warm-up at import,
-outside the timed path; Java/JS/Julia/Dart run as persistent warm workers.
+Notable: **Swift ties C++**, Rust and Zig sit within 15 %, and **hand-written
+assembly loses to compiler + intrinsics** — modern compilers schedule the M4
+pipeline better than a human. Plain C shows what you give up without intrinsics:
+3× (the early-exit escape loop defeats the autovectorizer). SIMD APIs on managed
+runtimes work: Java/Kotlin Vector API and C# AdvSimd all land within ~4× of
+native. Even Common Lisp beats "modern" scripting runtimes. Compiled/JIT entries
+pay build & warm-up at import, outside the timed path; managed runtimes run as
+persistent warm workers (Crystal's spread reflects scheduler bimodality we
+measured honestly rather than hid).
 
 **Winner overall: Metal GPU** ([`metalbrot.mm`](metalbrot.mm)) — a runtime-compiled
 compute shader with zero-copy unified memory, ~**3000x faster than the SQL baseline**.

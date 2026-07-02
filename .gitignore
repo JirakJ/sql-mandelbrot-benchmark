@@ -19,6 +19,18 @@ libgobrot.h
 javabrot_classes/
 dartbrot_bin
 *.o
+nimcache/
+*.jar
+*.hi
+haskellbrot_bin
+ocamlbrot_bin
+*.cmi
+*.cmx
+crystalbrot_bin
+csharpbrot/bin/
+csharpbrot/obj/
+*.fasl
+sbclbrot_bin
 
 # Distribution / packaging
 .Python

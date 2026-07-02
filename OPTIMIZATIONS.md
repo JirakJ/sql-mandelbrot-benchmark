@@ -135,11 +135,11 @@ the workload and the 40-core GPU pulls away:
 72 megapixels of 256-iteration Mandelbrot in 1.87 ms ≈ **38 gigapixel-iterations
 per second**.
 
-## Language shootout — one algorithm, twelve implementations
+## Language shootout — one algorithm, twenty-two implementations
 
 To separate "language speed" from "algorithm speed", the same optimized algorithm
 (SIMD where the language exposes it, all cores, cardioid/bulb early-out, y-axis
-symmetry, identical escape semantics) was implemented in twelve languages.
+symmetry, identical escape semantics) was implemented in twenty-two languages.
 Best of 15, 1400×800×256:
 
 | Language | Time | Notes |
@@ -148,32 +148,48 @@ Best of 15, 1400×800×256:
 | C++ | 0.39 ms | NEON intrinsics, G=2 ILP, GCD |
 | Swift | 0.39 ms | `SIMD8<Float>`, `concurrentPerform` — ties C++ |
 | Rust | 0.40 ms | `std::arch::aarch64` NEON + rayon |
+| Zig | 0.45 ms | `@Vector(8, f32)`, `@mulAdd` FMA, GCD |
 | ARM64 assembly | 0.54 ms | hand-written NEON kernel + C/GCD shim |
 | C | 1.23 ms | scalar, autovectorization only — no intrinsics |
 | Java | 1.26 ms | Vector API (`FloatVector`), parallel streams, warm JVM worker |
+| Kotlin | 1.30 ms | Vector API via JVM interop, parallel streams |
+| Nim | 1.35 ms | `-d:danger`, persistent thread pool, clang backend |
 | Fortran | 1.38 ms | OpenMP, gfortran |
 | Go | 1.41 ms | goroutines, atomic row counter, c-shared |
+| C# | 1.67 ms | `AdvSimd` Vector128 intrinsics, `Parallel.For`, .NET 10 |
+| Haskell | 1.94 ms | GHC `-threaded`, strict unboxed loop, zero-copy ByteString |
 | JavaScript | 2.19 ms | Node `worker_threads` + SharedArrayBuffer |
+| Common Lisp | 2.70 ms | SBCL, typed single-floats, sb-thread |
 | Dart | 2.70 ms | AOT-compiled isolate pool |
+| OCaml | 2.82 ms | OCaml 5 multicore domain pool |
 | Julia | 3.55 ms | `Threads.@threads`, warm worker |
+| Crystal | 8.94 ms | MT fibers (execution contexts) — bimodal scheduler, median 16.5 ms |
+| LuaJIT | 19.43 ms | no threads: pool of 10 persistent worker processes |
+| Ruby | 35.61 ms | Ruby 4.0, YJIT, one Ractor per core |
 
 ![Language shootout](web/assets/chart-languages.png)
 
 Findings:
 
-- **Swift ties C++ and Rust is 3 % behind** — all three compile to nearly the
-  same NEON machine code. Language choice among these is ergonomics, not speed.
+- **Swift ties C++; Rust and Zig sit within 15 %** — all compile to nearly the
+  same NEON machine code. Language choice in this tier is ergonomics, not speed.
 - **Hand-written assembly (0.54 ms) loses ~35 % to compiler + intrinsics.**
   The human-scheduled loop can't beat LLVM's model of the M4 pipeline. Write
   intrinsics, let the compiler schedule.
 - **Intrinsics vs autovectorization is 3×** (C++ 0.39 vs C 1.23): the early-exit
   escape loop defeats clang's autovectorizer, so scalar C is what most "fast C"
   actually ships.
-- **Java's Vector API delivers** — 1.26 ms puts the JVM within 3.2× of native
-  intrinsics, ahead of scalar Fortran/Go.
+- **SIMD APIs on managed runtimes deliver**: Java 1.26 / Kotlin 1.30 (Vector
+  API) and C# 1.67 (`AdvSimd`) put GC'd runtimes within ~4× of native
+  intrinsics — ahead of scalar Fortran and Go.
+- **The scripting tail is parallelism-limited, not arithmetic-limited**:
+  LuaJIT's superb single-core JIT still needs a process pool (19 ms), and Ruby's
+  Ractors carry heavy per-frame coordination (36 ms). Even Common Lisp (2.7 ms)
+  runs circles around them.
 - Fairness: compile & JIT warm-up happen at import (untimed), managed runtimes
   run as persistent warm workers; the timed path is compute + (for workers) a
-  2.2 MB pipe transfer.
+  2.2 MB pipe transfer. Crystal's number is reported with its measured
+  bimodality, not hidden behind the best case.
 
 ## Verification methodology
 

@@ -127,33 +127,45 @@ fig.savefig(f"{OUT}/chart-scaling.png", dpi=2.0 * 72, facecolor=BG)
 plt.close(fig)
 
 # Language shootout (best-of-15, same algorithm: SIMD/threads/symmetry/early-out)
+# teal = explicit SIMD (GPU / intrinsics / SIMD API / hand asm), blue = scalar
 LANGS = [
     ("Metal (GPU)", 0.31, True),
     ("C++ (NEON intrinsics)", 0.39, True),
     ("Swift (SIMD8)", 0.39, True),
     ("Rust (NEON + rayon)", 0.40, True),
+    ("Zig (@Vector)", 0.45, True),
     ("ARM64 assembly (NEON)", 0.54, True),
     ("C (autovectorized)", 1.23, False),
-    ("Java (Vector API)", 1.26, False),
+    ("Java (Vector API)", 1.26, True),
+    ("Kotlin (Vector API)", 1.30, True),
+    ("Nim (threads)", 1.35, False),
     ("Fortran (OpenMP)", 1.38, False),
     ("Go (goroutines)", 1.41, False),
+    ("C# (AdvSimd)", 1.67, True),
+    ("Haskell (GHC threads)", 1.94, False),
     ("JavaScript (Node workers)", 2.19, False),
+    ("Common Lisp (SBCL)", 2.70, False),
     ("Dart (isolates)", 2.70, False),
+    ("OCaml (domains)", 2.82, False),
     ("Julia (threads)", 3.55, False),
+    ("Crystal (MT fibers)", 8.94, False),
+    ("LuaJIT (process pool)", 19.43, False),
+    ("Ruby (YJIT + Ractors)", 35.61, False),
 ]
-fig, ax = plt.subplots(figsize=(10, 6.4))
+fig, ax = plt.subplots(figsize=(10, 9.6))
 names = [x[0] for x in LANGS][::-1]
 vals = [x[1] for x in LANGS][::-1]
 colors = [TEAL if x[2] else BLUE for x in LANGS][::-1]
 bars = ax.barh(names, vals, color=colors, height=0.62)
-ax.set_xlabel("time, ms (lower is better)")
-ax.set_title("Twelve languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
+ax.set_xscale("log")
+ax.set_xlabel("time, ms — log scale (lower is better)")
+ax.set_title("22 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
              pad=14, fontsize=14)
 for b, v in zip(bars, vals):
-    ax.text(b.get_width() + 0.06, b.get_y() + b.get_height() / 2, f"{v:.2f} ms",
-            va="center", fontsize=10.5, color=TEXT)
-ax.set_xlim(0, 4.3)
-ax.grid(axis="x")
+    ax.text(b.get_width() * 1.09, b.get_y() + b.get_height() / 2, f"{v:.2f} ms",
+            va="center", fontsize=10, color=TEXT)
+ax.set_xlim(0.25, 90)
+ax.grid(axis="x", which="both")
 ax.set_axisbelow(True)
 fig.tight_layout()
 fig.savefig(f"{OUT}/chart-languages.png", dpi=2.0 * 72, facecolor=BG)
