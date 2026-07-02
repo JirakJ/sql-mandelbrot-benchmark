@@ -209,6 +209,7 @@ LANGS = [
     ("GNU Smalltalk (pool)", 389.97, False),
     ("Guile (JIT threads)", 1089.61, False),
     ("GNU APL (whole-grid)", 2933.82, False),
+    ("TypeScript (Node strip-types)", 2.34, False),
     # Overall records — combined CPU+GPU, NOT single languages (gold)
     ("★ Hybrid — Metal 4 (CPU+GPU)", 0.15, "REC"),
     ("★ Hybrid — Metal 3 (CPU+GPU)", 0.24, "REC"),
@@ -222,7 +223,7 @@ colors = [(GOLD if x[2] == "REC" else TEAL if x[2] else BLUE) for x in LANGS][::
 bars = ax.barh(names, vals, color=colors, height=0.62)
 ax.set_xscale("log")
 ax.set_xlabel("time, ms — log scale (lower is better)")
-ax.set_title("72 languages + the CPU+GPU record — Apple M4 Max, 1400×800 × 256 it.",
+ax.set_title("73 languages + the CPU+GPU record — Apple M4 Max, 1400×800 × 256 it.",
              pad=14, fontsize=14)
 for b, v in zip(bars, vals):
     lbl = f"{v:.2f} ms" if v < 100 else f"{v:,.0f} ms"

@@ -33,6 +33,7 @@ BENCHMARKS = [
     ("Java (Vector API)", "javabrot", "run_javabrot"),
     ("Julia (threads)", "juliabrot", "run_juliabrot"),
     ("JavaScript (Node workers)", "jsbrot", "run_jsbrot"),
+    ("TypeScript (Node strip-types)", "tsbrot", "run_tsbrot"),
     ("Dart (isolates)", "dartbrot", "run_dartbrot"),
     ("Zig (@Vector SIMD)", "zigbrot", "run_zigbrot"),
     ("C# (AdvSimd)", "csharpbrot", "run_csharpbrot"),

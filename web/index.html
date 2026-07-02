@@ -541,11 +541,11 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
 <section id="languages">
   <div class="wrap">
     <div class="kicker reveal">Language shootout</div>
-    <h2 class="reveal">Seventy-two languages, one algorithm</h2>
+    <h2 class="reveal">Seventy-three languages, one algorithm</h2>
     <p class="lede reveal">Same SIMD strategy, same early-outs, same symmetry, same escape semantics —
-      reimplemented in seventy-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
+      reimplemented in seventy-three languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-languages.png?v=rec" alt="Language shootout, 72 languages from Metal 0.31 ms to Bash 5.6 s, plus the CPU+GPU record hybrid at 0.15 ms on top, log scale" loading="lazy">
+      <img src="assets/chart-languages.png?v=ts" alt="Language shootout, 73 languages from Metal 0.31 ms to Bash 5.6 s, plus the CPU+GPU record hybrid at 0.15 ms on top, log scale" loading="lazy">
       <figcaption>Best-of-N runs, log scale. <b style="color:#fbbf24">Gold</b> = the overall CPU+GPU record (the Metal 4 and Metal 3 hybrids — not single languages, shown for reference). Teal = explicit SIMD (GPU, vector types, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
     </figure>
     <div class="callout reveal">
@@ -603,6 +603,7 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
         ["Objective-C", "objcbrot.m", "<b>Limit:</b> none we could measure — 0.34 ms, the fastest CPU entry, via clang ext_vector types. The catch: one objc_msgSend per pixel would end it; peak ObjC means not using ObjC in the loop."],
         ["WebAssembly (WAT)", "wasmbrot.wat", "<b>Limit:</b> SIMD128 is 4-lane only, no fused multiply-add, bounds-checked memory — a portable ~2× tax vs native NEON."],
         ["JavaScript", "jsbrot.mjs", "<b>Limit:</b> V8 JIT is heroic, but no SIMD without WASM and doubles-only arithmetic; workers + SAB are the only route to cores."],
+        ["TypeScript", "tsbrot.ts", "<b>Limit:</b> 2.34 ms — identical to JavaScript, by design. Node's native type-stripping erases the types at load; there is no runtime left that is 'TypeScript', so it inherits V8's every limit (no SIMD, doubles-only, workers for cores). Types cost exactly nothing at runtime."],
         ["Dart", "dartbrot.dart", "<b>Limit:</b> AOT is respectable; isolates share nothing, so every frame pays serialization instead of shared memory."],
         ["Julia", "juliabrot.jl", "<b>Limit:</b> 'looks like Python, runs like C' holds per-core only if you fight allocations; JIT warm-up needs hiding in a worker."],
         ["Common Lisp", "sbclbrot.lisp", "<b>Limit:</b> SBCL with type declarations beats most scripting runtimes — but declarations everywhere is the price, and no SIMD."],
@@ -695,12 +696,35 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
     <h2 class="reveal">Clone, build, measure</h2>
     <p class="lede reveal">Everything is open source — the kernels, the harness, the charts, this page.</p>
 <pre class="reveal"><code>git clone https://github.com/jirakj/sql-mandelbrot-benchmark
-<span class="tok-c"># native kernels build themselves on first import</span>
-uv run python main.py        <span class="tok-c"># full suite — SQL engines to Metal</span>
-uv run python cppbrot.py     <span class="tok-c"># C++ NEON kernel (0.39 ms)</span>
-uv run python metalbrot.py   <span class="tok-c"># Metal GPU kernel (0.30 ms)</span></code></pre>
+cd sql-mandelbrot-benchmark
+
+<span class="tok-c"># The whole comparison, every engine + all 73 languages:</span>
+uv run python main.py</code></pre>
+    <p class="reveal" style="margin-top:18px; color:var(--muted); font-size:15px">
+      <b style="color:var(--text)">Every single test runs the same way</b> — one file per implementation,
+      named <code>&lt;lang&gt;brot.py</code>. Running it <b>clones nothing else, builds itself, then measures</b>:
+      the wrapper compiles the native kernel (or spawns the interpreter/VM pool), runs a warm-up, computes
+      the frame, and writes <code>images/&lt;lang&gt;brot.png</code> as proof. No per-language setup, no build
+      scripts to read — the Python file is the build system.
+    </p>
+<pre class="reveal"><code><span class="tok-c"># The record and the crowns</span>
+uv run python hybrid4brot.py <span class="tok-c"># Hybrid, Metal 4 command model — 0.15 ms (record)</span>
+uv run python hybridbrot.py  <span class="tok-c"># Hybrid, Metal 3 — 0.24 ms</span>
+uv run python metalbrot.py   <span class="tok-c"># Metal GPU — 0.30 ms</span>
+uv run python objcbrot.py    <span class="tok-c"># Objective-C ext_vector — 0.34 ms (fastest CPU)</span>
+
+<span class="tok-c"># Any language in the shootout — same pattern:</span>
+uv run python cppbrot.py     <span class="tok-c"># C++ NEON            0.39 ms</span>
+uv run python ispcbrot.py    <span class="tok-c"># ISPC SPMD           0.91 ms</span>
+uv run python tsbrot.py      <span class="tok-c"># TypeScript          2.34 ms</span>
+uv run python haskellbrot.py <span class="tok-c"># Haskell             1.94 ms</span>
+uv run python cobolbrot.py   <span class="tok-c"># COBOL (Q28 fixed)   201 ms</span>
+uv run python bashbrot.py    <span class="tok-c"># Bash (Q26 fixed)    5.6 s</span>
+<span class="tok-c"># …73 in total — swap in any name from the cards above.</span></code></pre>
     <p class="reveal" style="margin-top:22px; color:var(--muted); font-size:15px">
-      Full write-up with every measurement: <a href="https://github.com/jirakj/sql-mandelbrot-benchmark/blob/master/OPTIMIZATIONS.md">OPTIMIZATIONS.md</a>
+      Toolchains the native entries need (ispc, halide, gambit, gforth, …) install via Homebrew;
+      each wrapper's docstring names its compiler. Full write-up with every measurement:
+      <a href="https://github.com/jirakj/sql-mandelbrot-benchmark/blob/master/OPTIMIZATIONS.md">OPTIMIZATIONS.md</a>
     </p>
   </div>
 </section>

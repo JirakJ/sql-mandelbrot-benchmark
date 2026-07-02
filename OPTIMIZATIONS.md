@@ -192,11 +192,11 @@ the workload and the 40-core GPU pulls away:
 72 megapixels of 256-iteration Mandelbrot in 1.87 ms ≈ **38 gigapixel-iterations
 per second**.
 
-## Language shootout — one algorithm, seventy-two implementations
+## Language shootout — one algorithm, seventy-three implementations
 
 To separate "language speed" from "algorithm speed", the same optimized algorithm
 (SIMD where the language exposes it, all cores, cardioid/bulb early-out, y-axis
-symmetry, identical escape semantics) was implemented in **72 languages** across
+symmetry, identical escape semantics) was implemented in **73 languages** across
 seven waves. Full table with per-file links lives in the
 [README](README.md#language-shootout); the top tier and the extremes:
 
