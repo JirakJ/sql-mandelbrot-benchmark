@@ -345,7 +345,7 @@
     <p class="lede reveal">The repository benchmarks SQL engines (recursive CTEs!), Python and NumPy against native code.
       Same fractal, same escape semantics — from four minutes to about a sixth of a millisecond, an over-1.5-million-fold span.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-ladder.png" alt="Benchmark ladder: SQLite ~4 min single-run down to the Metal 4 hybrid at 0.15 ms, log scale spanning over six orders of magnitude" loading="lazy">
+      <img src="assets/chart-ladder.png?v=metal4" alt="Benchmark ladder: SQLite ~4 min single-run down to the Metal 4 hybrid at 0.15 ms, log scale spanning over six orders of magnitude" loading="lazy">
       <figcaption>Single-run wall-clock, 1400×800 px × 256 iterations, Apple M4 Max. Log scale — each gridline is 10×.</figcaption>
     </figure>
   </div>
@@ -505,7 +505,7 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
     </div>
 
     <figure class="chart reveal">
-      <img src="assets/chart-journey.png" alt="Optimization journey: NumPy 972 ms, v1 NEON 0.79 ms, v2 symmetry 0.39 ms, v3 Metal GPU 0.30 ms" loading="lazy">
+      <img src="assets/chart-journey.png?v=metal4" alt="Optimization journey: NumPy 972 ms, v1 NEON 0.79 ms, v2 symmetry 0.39 ms, v3 Metal GPU 0.30 ms, v4 hybrid 0.24 ms, v5 Metal 4 0.15 ms" loading="lazy">
       <figcaption>The journey on one chart. Log scale; labels show cumulative speedup vs NumPy.</figcaption>
     </figure>
   </div>
@@ -528,7 +528,7 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
       </tbody>
     </table>
     <figure class="chart reveal">
-      <img src="assets/chart-scaling.png" alt="CPU vs GPU scaling chart, log-log, gap grows with workload size" loading="lazy">
+      <img src="assets/chart-scaling.png?v=metal4" alt="CPU vs GPU scaling chart, log-log, gap grows with workload size" loading="lazy">
       <figcaption>Log–log scaling. CPU grows linearly with pixels; the GPU barely notices until tens of megapixels.</figcaption>
     </figure>
     <div class="callout reveal">
@@ -545,7 +545,7 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
     <p class="lede reveal">Same SIMD strategy, same early-outs, same symmetry, same escape semantics —
       reimplemented in seventy-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-languages.png" alt="Language shootout, 72 languages from Metal 0.31 ms to Bash 5.6 s, log scale" loading="lazy">
+      <img src="assets/chart-languages.png?v=metal4" alt="Language shootout, 72 languages from Metal 0.31 ms to Bash 5.6 s, log scale" loading="lazy">
       <figcaption>Best-of-N runs, log scale. Teal = explicit SIMD (GPU, vector types, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
     </figure>
     <div class="callout reveal">
