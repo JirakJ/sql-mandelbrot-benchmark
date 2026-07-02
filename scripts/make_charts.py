@@ -209,22 +209,26 @@ LANGS = [
     ("GNU Smalltalk (pool)", 389.97, False),
     ("Guile (JIT threads)", 1089.61, False),
     ("GNU APL (whole-grid)", 2933.82, False),
+    # Overall records — combined CPU+GPU, NOT single languages (gold)
+    ("★ Hybrid — Metal 4 (CPU+GPU)", 0.15, "REC"),
+    ("★ Hybrid — Metal 3 (CPU+GPU)", 0.24, "REC"),
 ]
 LANGS.sort(key=lambda x: x[1])
-fig, ax = plt.subplots(figsize=(10.5, 24.5))
+fig, ax = plt.subplots(figsize=(10.5, 25.2))
 names = [x[0] for x in LANGS][::-1]
 vals = [x[1] for x in LANGS][::-1]
-colors = [TEAL if x[2] else BLUE for x in LANGS][::-1]
+GOLD = "#fbbf24"
+colors = [(GOLD if x[2] == "REC" else TEAL if x[2] else BLUE) for x in LANGS][::-1]
 bars = ax.barh(names, vals, color=colors, height=0.62)
 ax.set_xscale("log")
 ax.set_xlabel("time, ms — log scale (lower is better)")
-ax.set_title("72 languages, one algorithm — Apple M4 Max, 1400×800 × 256 it.",
+ax.set_title("72 languages + the CPU+GPU record — Apple M4 Max, 1400×800 × 256 it.",
              pad=14, fontsize=14)
 for b, v in zip(bars, vals):
     lbl = f"{v:.2f} ms" if v < 100 else f"{v:,.0f} ms"
     ax.text(b.get_width() * 1.09, b.get_y() + b.get_height() / 2, lbl,
             va="center", fontsize=10, color=TEXT)
-ax.set_xlim(0.25, 16000)
+ax.set_xlim(0.1, 16000)
 ax.grid(axis="x", which="both")
 ax.set_axisbelow(True)
 fig.tight_layout()

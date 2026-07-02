@@ -545,8 +545,8 @@ zi = <span class="tok-f">vmlaq_f32</span>(ci, <span class="tok-f">vmulq_f32</spa
     <p class="lede reveal">Same SIMD strategy, same early-outs, same symmetry, same escape semantics —
       reimplemented in seventy-two languages to separate <i>language</i> speed from <i>algorithm</i> speed.</p>
     <figure class="chart reveal">
-      <img src="assets/chart-languages.png?v=metal4" alt="Language shootout, 72 languages from Metal 0.31 ms to Bash 5.6 s, log scale" loading="lazy">
-      <figcaption>Best-of-N runs, log scale. Teal = explicit SIMD (GPU, vector types, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
+      <img src="assets/chart-languages.png?v=rec" alt="Language shootout, 72 languages from Metal 0.31 ms to Bash 5.6 s, plus the CPU+GPU record hybrid at 0.15 ms on top, log scale" loading="lazy">
+      <figcaption>Best-of-N runs, log scale. <b style="color:#fbbf24">Gold</b> = the overall CPU+GPU record (the Metal 4 and Metal 3 hybrids — not single languages, shown for reference). Teal = explicit SIMD (GPU, vector types, intrinsics, Vector API, hand-written assembly); blue = scalar.</figcaption>
     </figure>
     <div class="callout reveal">
       <b>Objective-C is the fastest CPU entry</b> — generic clang <code>ext_vector_type</code> beat
