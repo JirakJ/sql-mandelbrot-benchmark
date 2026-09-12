@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LPDDR5X-PIM: 8× bandwidth became 3× tokens — where the other 5× went — Jakub Jirák</title>
+  <meta name="description" content="Samsung's Hot Chips 2026 LPDDR5X-PIM puts MAC trees inside DRAM banks: 614 GB/s internal vs 76.8 GB/s external, Llama 3.1 8B decoding 3.01× faster. A roofline and Amdahl's law show what processing-in-memory fixes, what it can't, and why the numbers are preliminary.">
+  <meta name="author" content="Jakub Jirák">
+  <link rel="canonical" href="https://performance.jakubjirak.com/articles/lpddr5x-pim-decode-roofline.html" />
+  <meta name="theme-color" content="#07111f" />
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://performance.jakubjirak.com/articles/lpddr5x-pim-decode-roofline.html">
+  <meta property="og:title" content="LPDDR5X-PIM: 8× bandwidth became 3× tokens — where the other 5× went">
+  <meta property="og:description" content="Decode is a bandwidth problem, so processing-in-memory aims at the right bottleneck. The measured 3.01× on Llama 3.1 8B says 76 % of decode time was the weight stream — and the rest now dominates.">
+  <meta property="og:image" content="https://performance.jakubjirak.com/assets/mandelbrot-hero.png">
+  <meta property="og:site_name" content="Jakub Jirák — Performance">
+  <meta property="article:published_time" content="2026-09-13">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,600;0,800;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/article.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "LPDDR5X-PIM: 8× bandwidth became 3× tokens — where the other 5× went",
+    "author": { "@type": "Person", "name": "Jakub Jirák", "url": "https://www.jakubjirak.com/" },
+    "datePublished": "2026-09-13",
+    "about": ["processing-in-memory", "LPDDR5X-PIM", "Samsung", "Hot Chips 2026", "LLM decoding", "roofline model", "unified memory"],
+    "inLanguage": "en",
+    "mainEntityOfPage": "https://performance.jakubjirak.com/articles/lpddr5x-pim-decode-roofline.html"
+  }
+  </script>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="../">performance<span>@</span>jakubjirak<span>.com</span></a>
+    <div class="navlinks">
+      <a href="../#casestudy">Case study</a>
+      <a href="../#languages">Languages</a>
+      <a href="../#articles">Articles</a>
+      <a href="https://www.jakubjirak.com">jakubjirak.com ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="article-hero">
+  <div class="wrap">
+    <div class="eyebrow">Articles · Memory · Edge inference</div>
+    <h1>LPDDR5X-PIM: 8× bandwidth became <em>3× tokens</em> — where the other 5× went</h1>
+    <div class="meta"><span>13 Sep 2026</span><span><b>5 min read</b></span><span>Jakub Jirák</span></div>
+    <p class="lede">At Hot Chips 2026 Samsung showed LPDDR5X with multiply-accumulate units sitting next to the DRAM banks, and Llama 3.1 8B decoding
+      3.01× faster on an edge SoC because of it. Decoding is a bandwidth problem, so this aims at the right bottleneck. The numbers are
+      preliminary — and a short roofline exercise shows both why the idea works and why 8× more bandwidth did not become 8× more tokens.</p>
+  </div>
+</header>
+
+<main class="article">
+
+  <h2><span class="kicker">The part</span>What was shown</h2>
+  <p>A standard LPDDR5X die has 16 banks. Samsung put a PIM block in each: a MAC tree plus an ALU that handles both integer and floating-point
+    formats. At 8-bit precision each block does 4 multiply-accumulates per data clock, at 4-bit weights 8 per cycle; across the package that
+    adds up to about <b>2.4 TOPS</b> with INT4 weights or ~1.2 TFLOPS at FP8. The interesting number is not the compute, it is where the
+    operands come from:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Path</th><th>Bandwidth</th><th>Who can use it</th></tr></thead>
+    <tbody>
+      <tr><td>External bus, x64 at 9 600 Mbps</td><td class="mono">76.8 GB/s</td><td>Anything on the SoC — CPU, GPU, NPU, any operation</td></tr>
+      <tr><td>Internal, all 16 banks in parallel</td><td class="mono"><span class="adv">614 GB/s</span></td><td>Only the MAC trees inside the banks, only for the ops they implement</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The package is a JEDEC-standard 561-ball LPDDR5X footprint — 16 GB across four dies per rank — so it is meant to drop into an existing
+    board. Programming it goes through ordinary LPDDR5X commands aimed at reserved row addresses: a 1 024-bit instruction register holds up to
+    64 sixteen-bit instructions, a 4 kbit register file holds the activation vector, a 2 kbit file holds scales, and every register write is
+    broadcast to all 16 banks. One operand comes from the register file, the other from the bank the block sits on. In other words: a tiny SIMD
+    machine that you talk to by writing to memory addresses.</p>
+  <p>The demo: Llama 3.1 8B, 320-token context, SINT8 activations and SINT4 weights with 32-bit accumulation, on a Samsung edge AI accelerator
+    SoC. Runtime went from 12.3 s to 5.4 s (<b>2.28×</b>); token throughput from 27.0 to <b>81.3 tokens/s</b> (3.01×). Samsung calls the
+    results preliminary and expects total energy not to rise, since the point of the exercise is to stop moving bytes across the bus.</p>
+
+  <h2><span class="kicker">Roofline</span>Why it works: decode is a weight stream</h2>
+  <p>Generating one token in an 8B model at batch size one means reading every active weight once and doing almost nothing with it —
+    a matrix-vector product per layer, a few flops per byte. At INT4 the weights are about <b>4.0 GB</b>. The KV cache at 320 tokens is
+    ~40 MiB and doesn't matter yet. So the per-token floor on a single x64 rank is:</p>
+<pre><code><span class="tok-c"># bytes per token / external bandwidth</span>
+4.0 GB / 76.8 GB/s  =  <span class="tok-n">52 ms</span>   →  ceiling ≈ <span class="tok-n">19 tok/s</span>
+<span class="tok-c"># same weights through the in-bank MAC trees</span>
+4.0 GB / 614 GB/s   =  <span class="tok-n">6.5 ms</span>  →  ceiling ≈ <span class="tok-n">153 tok/s</span></code></pre>
+  <p>Two things fall out. First, the baseline of 27 tok/s is <em>above</em> the single-rank roofline — so the test platform has more than one
+    channel feeding the model, or the reported rate is not pure decode. Samsung hasn't published the channel count, which is one concrete reason
+    to treat these as preliminary. Second, whatever the channel count, the ratio between the two paths is fixed at 8×, and the ratio Samsung
+    measured is 3.01×. That gap is Amdahl's law, and it is quantifiable.</p>
+
+  <h2><span class="kicker">Amdahl</span>Where the other 5× went</h2>
+  <p>If a fraction <code>f</code> of the per-token time is the weight stream and gets 8× faster, and the rest does not change:</p>
+<pre><code>speedup = 1 / ((1 − f) + f / 8) = 3.01
+      f = (1 − 1/3.01) / (1 − 1/8) = <span class="tok-n">0.763</span></code></pre>
+  <p>So on the conventional path, <b>about 76 % of decode time was the GEMV weight stream</b> — which is the textbook profile for a
+    bandwidth-bound decoder, and a sanity check that the 3.01× is a real bandwidth win rather than a compiler artefact. After PIM, the picture
+    inverts: the weight stream is now ~29 % of the shorter token time and the untouched 24 % has grown to <b>~71 %</b>. With that remainder
+    unchanged, no amount of extra in-bank bandwidth gets the workload past <b>4.2×</b>. The next 2× is not in the DRAM; it is in whatever the
+    remainder is made of.</p>
+  <p>What the remainder is, from the programming model above: host-side attention, normalisation and sampling; the round trip of writing an
+    activation vector into the register file, issuing the instruction stream and reading results back over the same 76.8 GB/s bus; and the
+    software constraints that make this a real platform decision — PIM regions must be mapped uncacheable and non-speculative, and a channel
+    cannot serve PIM and ordinary traffic across threads at the same time, so channels get reserved for it. The 2.28× runtime figure against
+    the 3.01× throughput figure says the same thing from the other side: prefill is compute-bound GEMM, not GEMV, and the MAC trees do not
+    help it.</p>
+
+  <div class="caveat"><b>Context length</b>At 320 tokens the KV cache is noise. At 8k it is ~1 GiB in FP16, at 32k ~4 GiB — the same size as the
+    weights. Attention over that cache is a different dataflow from a weight-stream GEMV, and Samsung's material shows MAC trees, not an attention
+    unit. If the cache stays on the host side of the bus, the 3× shrinks as context grows. The published result is a short-context result.</div>
+
+  <h2><span class="kicker">Comparison</span>PIM vs unified memory</h2>
+  <p>It is tempting to line 614 GB/s up next to the 410–546 GB/s that an M4 Max delivers from its unified LPDDR5X, and conclude that a phone's
+    DRAM has caught up with a workstation. It hasn't, because the two numbers measure different things. Unified memory delivers its bandwidth to
+    <em>any consumer for any operation</em> — that is what made <a href="../#casestudy">step 9 of the case study</a> go zero-copy between CPU and
+    GPU. PIM's 614 GB/s exists only inside the package, only for a MAC tree that multiplies a broadcast vector against the bank it lives in. Send it
+    a softmax and it is a 76.8 GB/s part again.</p>
+  <p>That makes PIM a specialised accelerator that happens to be hidden inside a DRAM package, not a faster memory. Which is fine — matrix-vector
+    against static weights is the dominant term in single-stream decode and the one worth attacking — but it means the product is the compiler
+    and runtime that carve a model into "in-bank" and "everything else", not the die.</p>
+
+  <div class="checks">
+    <div class="check"><div class="tick">✓</div><p><b>Right bottleneck.</b> Single-stream decode is memory-bound; 76 % of the baseline token time was the weight stream, and PIM cut exactly that.</p></div>
+    <div class="check"><div class="tick">✓</div><p><b>Amdahl caps it at ~4.2×</b> on this workload with the host-side remainder untouched. The 3.01× already uses most of that headroom.</p></div>
+    <div class="check"><div class="tick">✓</div><p><b>Preliminary means preliminary.</b> Channel count, energy, accuracy after INT4 and any context beyond 320 tokens are unpublished. Quote the 3× with its conditions or not at all.</p></div>
+    <div class="check"><div class="tick">✓</div><p><b>The roadmap is the tell.</b> LPDDR6-PIM is heading for JEDEC standardisation. A standard PIM command set is what would make the "everything else" part portable — and that is where the remaining gain lives.</p></div>
+  </div>
+
+  <div class="callout">Reading a memory vendor's LLM benchmark: take the bandwidth ratio, take the measured speedup, solve for <b>f</b>. The
+    number you get is the honest description of the workload — and of how much is left for the next generation to find.</div>
+
+  <div class="sources">
+    <h3>Sources</h3>
+    <ol>
+      <li><a href="https://www.servethehome.com/samsung-lpddr5x-pim-at-hot-chips-2026/">ServeTheHome — Samsung LPDDR5X-PIM at Hot Chips 2026</a> (Llama 3.1 8B setup, 12.3 → 5.4 s, 27.0 → 81.3 tok/s, precision, package)</li>
+      <li><a href="https://chipsandcheese.com/p/hot-chips-2026-samsungs-processing">Chips and Cheese — Hot Chips 2026: Samsung's Processing-in-Memory</a> (bank architecture, MAC rates, register files, uncacheable mapping and channel isolation)</li>
+      <li><a href="https://www.tomshardware.com/pc-components/dram/hot-chips-2026-samsung-makes-lpddr5x-smart-with-logic-unit-in-memory-lpddr5x-pim-is-3-01x-faster-than-lpddr5x-in-ai-inference-with-8x-the-bandwidth">Tom's Hardware — LPDDR5X-PIM is 3.01× faster with 8× the bandwidth</a></li>
+      <li><a href="https://www.igorslab.de/en/samsung-lpddr5x-pim-memory-computes-speeds-up-ai-factor-3/">igor'sLAB — Samsung LPDDR5X-PIM</a> (preliminary status, energy expectation, JEDEC intent, LPDDR6-PIM roadmap)</li>
+    </ol>
+  </div>
+
+  <div class="more">
+    <h3>Previous article</h3>
+    <a class="next" href="jalapeno-vs-blackwell-perf-per-watt.html">
+      <div class="ic">INFERENCE HARDWARE</div>
+      <b>Jalapeño vs Blackwell: what the 1.9× perf/watt actually measures</b>
+      <span>Bandwidth per watt explains the shape, the all-in-megawatt denominator explains the size, and the calendar explains the rest.</span>
+    </a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 <a href="https://www.jakubjirak.com">Jakub Jirák</a> — Principal Software Engineer.<br>
+      Architecture · Automation · Performance · AI integration.</div>
+    <div style="text-align:right"><a href="../">← Back to the case study</a><br>
+      <span style="font-family:var(--mono); font-size:13px">no magic, only measurement</span></div>
+  </div>
+</footer>
+
+</body>
+</html>

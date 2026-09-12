@@ -273,6 +273,21 @@
     .check { display: flex; gap: 16px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 24px; }
     .check .tick { color: var(--teal-soft); font-family: var(--mono); font-weight: 800; font-size: 18px; padding-top: 1px; }
     .check p { font-size: 15px; color: var(--muted); } .check b { color: var(--text); }
+    /* articles */
+    .acards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 44px; }
+    @media (max-width: 760px) { .acards { grid-template-columns: 1fr; } }
+    a.acard {
+      display: block; color: var(--text);
+      background: linear-gradient(160deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 26px 26px 22px; transition: transform .2s ease, border-color .2s ease;
+    }
+    a.acard:hover { transform: translateY(-4px); border-color: #2a4a78; text-decoration: none; }
+    a.acard .ic { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--teal-soft); letter-spacing: .1em; }
+    a.acard h3 { font-size: 19px; margin: 10px 0 8px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
+    a.acard p { font-size: 14.5px; color: var(--muted); }
+    a.acard .am { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 14px; display: flex; gap: 14px; }
+    a.acard .am b { color: var(--blue-soft); font-weight: 600; }
     /* footer */
     footer { margin-top: 110px; border-top: 1px solid var(--line); padding: 44px 0 60px; font-size: 14.5px; color: var(--muted); }
     footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
@@ -291,6 +306,7 @@
       <a href="#languages">Languages</a>
       <a href="#failures">What failed</a>
       <a href="#reproduce">Reproduce</a>
+      <a href="#articles">Articles</a>
       <a href="https://www.jakubjirak.com">jakubjirak.com ↗</a>
     </div>
   </div>
@@ -726,6 +742,31 @@ uv run python bashbrot.py    <span class="tok-c"># Bash (Q26 fixed)    5.6 s</sp
       each wrapper's docstring names its compiler. Full write-up with every measurement:
       <a href="https://github.com/jirakj/sql-mandelbrot-benchmark/blob/master/OPTIMIZATIONS.md">OPTIMIZATIONS.md</a>
     </p>
+  </div>
+</section>
+
+<section id="articles">
+  <div class="wrap">
+    <div class="kicker reveal">Articles</div>
+    <h2 class="reveal">Reading other people's benchmarks</h2>
+    <p class="lede reveal">The same discipline as the case study — find the denominator, draw the roofline, check what was disabled —
+      applied to inference hardware announcements. Five minutes each.</p>
+    <div class="acards">
+      <a class="acard reveal" href="articles/jalapeno-vs-blackwell-perf-per-watt.html">
+        <div class="ic">INFERENCE HARDWARE</div>
+        <h3>Jalapeño vs Blackwell: what the 1.9× perf/watt actually measures</h3>
+        <p>OpenAI's first InferenceX numbers are real. Bandwidth per watt explains the shape, the all-in-megawatt denominator explains the size,
+          and the calendar explains the rest — a checklist for vendor-first benchmarks.</p>
+        <div class="am"><span>13 Sep 2026</span><span><b>5 min read</b></span></div>
+      </a>
+      <a class="acard reveal" href="articles/lpddr5x-pim-decode-roofline.html">
+        <div class="ic">MEMORY · EDGE INFERENCE</div>
+        <h3>LPDDR5X-PIM: 8× bandwidth became 3× tokens — where the other 5× went</h3>
+        <p>Samsung put MAC trees inside DRAM banks and Llama 3.1 8B decoded 3.01× faster. A roofline and Amdahl's law show what
+          processing-in-memory fixes, what it can't, and why "preliminary" is the operative word.</p>
+        <div class="am"><span>13 Sep 2026</span><span><b>5 min read</b></span></div>
+      </a>
+    </div>
   </div>
 </section>
 
