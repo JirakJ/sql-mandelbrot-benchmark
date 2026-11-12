@@ -6,6 +6,71 @@ __pycache__/
 
 # C extensions
 *.so
+*.dylib
+
+# Vercel
+web/.vercel/
+web/.env.local
+
+# native build artifacts (language benchmark entries)
+rustbrot/target/
+libgobrot.h
+*.class
+javabrot_classes/
+dartbrot_bin
+*.o
+nimcache/
+*.jar
+*.hi
+haskellbrot_bin
+ocamlbrot_bin
+*.cmi
+*.cmx
+crystalbrot_bin
+csharpbrot/bin/
+csharpbrot/obj/
+*.fasl
+sbclbrot_bin
+pascalbrot_bin
+*.ppu
+odinbrot_bin
+vbrot_bin
+fsharpbrot/bin/
+fsharpbrot/obj/
+scalabrot_classes/
+*.tasty
+elixirbrot_bin
+*.wasm
+chapelbrot_bin
+futharkbrot_bin
+futharkbrot.c
+objcbrot_bin
+clojurebrot_classes/
+groovybrot_classes/
+*.so.sig
+chezbrot_bin
+haxebrot_build/
+haxebrot_bin
+cobolbrot_bin
+smlbrot_bin
+ponybrot_bin
+*.beam
+valabrot.h
+valabrot.vapi
+valabrot.c
+.cythonbrot_build/
+gleambrot_src/build/
+leanbrot_src/.lake/
+leanbrot_bin
+*.elc
+*.eln
+erlangbrot_build/
+chickenbrot_bin
+gambitbrot_bin
+.pythranbrot_build/
+.apl.history
+ispcbrot.h
+headers/
 
 # Distribution / packaging
 .Python
@@ -162,7 +227,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Test-generated images
-images/*.png
-!images/.gitkeep
 
+measure_*.py
+libmetal4brot.dylib
+libhybrid4brot.dylib

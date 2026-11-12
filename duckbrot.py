@@ -26,6 +26,10 @@ def run_duckbrot(width, height, max_iterations):
     Returns:
         2D numpy array of iteration counts
     """
+    # Inputs are integer benchmark config; coerce so the SQL below can never
+    # carry untrusted text (defense-in-depth for the f-string interpolation).
+    width, height, max_iterations = int(width), int(height), int(max_iterations)
+
     # Build the SQL query
     mandelbrot_query = f"""
     WITH RECURSIVE
@@ -73,7 +77,7 @@ def run_duckbrot(width, height, max_iterations):
 
     # Execute query
     conn = duckdb.connect()
-    result = conn.execute(mandelbrot_query).fetchall()
+    result = conn.execute(mandelbrot_query).fetchall()  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- trusted int-only config, no user input
 
     # Convert to numpy array
     mandelbrot = np.zeros((height, width), dtype=np.uint16)

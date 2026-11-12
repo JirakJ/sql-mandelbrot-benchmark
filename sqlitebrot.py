@@ -34,6 +34,10 @@ def run_sqlitebrot(width, height, max_iterations):
     conn = sqlite3.connect(':memory:')
     cursor = conn.cursor()
 
+    # Inputs are integer benchmark config; coerce so the SQL below can never
+    # carry untrusted text (defense-in-depth for the f-string interpolation).
+    width, height, max_iterations = int(width), int(height), int(max_iterations)
+
     # Calculate step sizes
     x_step = 3.5 / (width - 1)
     y_step = 2.0 / (height - 1)
@@ -88,7 +92,7 @@ def run_sqlitebrot(width, height, max_iterations):
     """
 
     try:
-        cursor.execute(mandelbrot_query)
+        cursor.execute(mandelbrot_query)  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- trusted int-only config, no user input
         result = cursor.fetchall()
         cursor.close()
         conn.close()

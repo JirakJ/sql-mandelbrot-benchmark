@@ -1,6 +1,6 @@
 numpy
 duckdb
-pillow
+pillow>=12.2.0
 matplotlib
 datafusion
 pytest

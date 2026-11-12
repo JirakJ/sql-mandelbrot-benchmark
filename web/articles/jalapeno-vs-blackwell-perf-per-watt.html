@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jalapeño vs Blackwell: what the 1.9× perf/watt actually measures — Jakub Jirák</title>
+  <meta name="description" content="OpenAI's first Jalapeño numbers on InferenceX: 1.5–1.9× more tokens per kilowatt than Blackwell. The number is real. What it measures is narrower than the headline — and most of it is visible in the memory spec sheet.">
+  <meta name="author" content="Jakub Jirák">
+  <link rel="canonical" href="https://performance.jakubjirak.com/articles/jalapeno-vs-blackwell-perf-per-watt.html" />
+  <meta name="theme-color" content="#07111f" />
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://performance.jakubjirak.com/articles/jalapeno-vs-blackwell-perf-per-watt.html">
+  <meta property="og:title" content="Jalapeño vs Blackwell: what the 1.9× perf/watt actually measures">
+  <meta property="og:description" content="Bandwidth per watt explains the shape, the all-in-megawatt denominator explains the size, and the calendar explains the rest. How to read a vendor-first inference benchmark.">
+  <meta property="og:image" content="https://performance.jakubjirak.com/assets/mandelbrot-hero.png">
+  <meta property="og:site_name" content="Jakub Jirák — Performance">
+  <meta property="article:published_time" content="2026-09-13">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,600;0,800;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/article.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "Jalapeño vs Blackwell: what the 1.9× perf/watt actually measures",
+    "author": { "@type": "Person", "name": "Jakub Jirák", "url": "https://www.jakubjirak.com/" },
+    "datePublished": "2026-09-13",
+    "about": ["OpenAI Jalapeño", "Nvidia Blackwell", "InferenceX", "inference benchmarks", "performance per watt", "HBM4"],
+    "inLanguage": "en",
+    "mainEntityOfPage": "https://performance.jakubjirak.com/articles/jalapeno-vs-blackwell-perf-per-watt.html"
+  }
+  </script>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="../">performance<span>@</span>jakubjirak<span>.com</span></a>
+    <div class="navlinks">
+      <a href="../#casestudy">Case study</a>
+      <a href="../#languages">Languages</a>
+      <a href="../#articles">Articles</a>
+      <a href="https://www.jakubjirak.com">jakubjirak.com ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="article-hero">
+  <div class="wrap">
+    <div class="eyebrow">Articles · Inference hardware</div>
+    <h1>Jalapeño vs Blackwell: what the <em>1.9× perf/watt</em> actually measures</h1>
+    <div class="meta"><span>13 Sep 2026</span><span><b>5 min read</b></span><span>Jakub Jirák</span></div>
+    <p class="lede">OpenAI published the first numbers for its in-house inference chip on SemiAnalysis' InferenceX benchmark:
+      1.5–1.9× more tokens per kilowatt than Nvidia Blackwell, up to 3.6× lower latency. The numbers are real.
+      What they measure is narrower than the headline — and most of the gap is already visible in the memory spec sheet.</p>
+  </div>
+</header>
+
+<main class="article">
+
+  <h2><span class="kicker">The data</span>The numbers, as published</h2>
+  <p>Three models, three comparisons, one operating point each. Throughput is InferenceX's "mixed tokens per second per kilowatt"; latency is end-to-end for the request.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Model</th><th>vs</th><th>Throughput per kW</th><th>End-to-end latency</th></tr></thead>
+    <tbody>
+      <tr><td>GPT-OSS 120B</td><td class="mono">GB200</td><td><span class="adv">1.9×</span> — 85 448 vs 44 960 tok/s/kW</td><td class="mono">1.03 s vs 1.80 s (1.7×)</td></tr>
+      <tr><td>DeepSeek R1 670B</td><td class="mono">GB300</td><td><span class="adv">1.7×</span></td><td class="mono">1.65 s vs 5.99 s (3.6×)</td></tr>
+      <tr><td>Kimi K2.5 1T</td><td class="mono">GB300</td><td><span class="adv">1.5×</span></td><td class="mono">1.56 s vs 5.31 s (3.4×)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>On GPT-OSS the time between tokens dropped from 1.87 ms to 0.69 ms. The part behind it: one reticle-sized compute die on TSMC N3P,
+    13.4 PFLOPS of MXFP4 on the B0 stepping, six HBM4 stacks for 216 GiB and <b>15.4 TB/s</b>, a 700 W package TDP with a measured
+    sustained draw of roughly 550 W. The Blackwell parts it was compared against are rated at 1 200 W (GB200) and 1 400 W (GB300) per GPU.</p>
+
+  <h2><span class="kicker">Methodology</span>What InferenceX actually counts</h2>
+  <p>Before crediting the architecture, read the axis labels. Four things about the benchmark change how the table above should be interpreted.</p>
+  <ul>
+    <li><b>The denominator is all-in utility power, not chip TDP.</b> InferenceX divides output tokens by the megawatts the whole deployment
+      pulls from the wall — accelerator rack, host rack, networking. Jalapeño's reference deployment is a two-rack pair at roughly 160 kW.
+      A lean host rack is worth as much here as a good compute die.</li>
+    <li><b>It's a curve, not a point.</b> The benchmark sweeps interactivity (tokens per second per user) against concurrency. "1.9×" is the
+      ratio at one operating point on that curve, and the ratio changes along it.</li>
+    <li><b>Mixed tokens, short context.</b> Prefill and decode tokens are combined in one figure, at 8k input / 1k output. The long,
+      multi-turn agent traces that dominate real production traffic — InferenceX calls that suite AgentX — have not been published for Jalapeño yet.</li>
+    <li><b>Speculative decoding was off on Jalapeño</b> while the Nvidia entries ran with multi-token prediction. That handicap runs against
+      OpenAI's own chip, which makes the result more credible, not less.</li>
+  </ul>
+  <div class="caveat"><b>Provenance</b>The numbers were produced by OpenAI. SemiAnalysis observed the runs in OpenAI's lab and reviewed them,
+    but did not execute the full suite independently. The recipes — model, framework, precision, parallelism — are committed to the public InferenceX
+    repository as shell scripts, so a third party with silicon could reproduce them. Nobody outside OpenAI has silicon.</div>
+
+  <h2><span class="kicker">Roofline</span>Bandwidth per watt explains the shape</h2>
+  <p>Decoding is a memory-bandwidth problem. Every generated token streams the active weights and the KV cache through HBM once; the
+    arithmetic per byte is tiny. So the first thing to normalize is not FLOPS but <b>bytes per second per watt</b>:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Part</th><th>Memory</th><th>Bandwidth</th><th>Power</th><th>GB/s per W</th></tr></thead>
+    <tbody>
+      <tr><td>Jalapeño</td><td class="mono">6× HBM4, 216 GiB</td><td class="mono">15.4 TB/s</td><td class="mono">700 W</td><td><span class="adv">22.0</span></td></tr>
+      <tr><td>GB200 (B200)</td><td class="mono">HBM3e, 192 GB</td><td class="mono">8 TB/s</td><td class="mono">1 200 W</td><td class="mono">6.7</td></tr>
+      <tr><td>GB300 (B300)</td><td class="mono">HBM3e, 288 GB</td><td class="mono">8 TB/s</td><td class="mono">1 400 W</td><td class="mono">5.7</td></tr>
+      <tr><td>Rubin</td><td class="mono">HBM4, 288 GB</td><td class="mono">~22 TB/s</td><td class="mono">900–1 150 W</td><td class="mono">19–24</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Against Blackwell, Jalapeño has a <b>3.3–3.9× advantage in bandwidth per watt</b> before a single instruction executes. The measured
+    advantage in tokens per kilowatt is 1.5–1.9×. Roughly half of the memory-system edge disappears into the parts of the workload that
+    are not a weight stream — compute-bound prefill, host CPUs, network, cooling — which is exactly what an all-in denominator is supposed to
+    expose. That is the useful reading of this result: not "the ASIC is 2× better than the GPU", but "a 700 W part fed by HBM4 turns about
+    half of its raw bandwidth-per-watt edge into delivered tokens once the whole rack is on the meter".</p>
+  <p>The HBM generation is the elephant. Blackwell carries HBM3e; Nvidia's HBM4 part is Rubin, at roughly 22 TB/s per GPU and a
+    900–1 150 W compute die — the same bandwidth-per-watt class as Jalapeño. SemiAnalysis reports Jalapeño still ahead of Rubin on tokens per
+    megawatt in their runs, but the gap is a fraction of the Blackwell gap. <b>Rubin is the like-for-like comparison</b>, and Rubin is
+    shipping to customers now while Jalapeño is at engineering-sample stage.</p>
+
+  <h2><span class="kicker">Timeline</span>The calendar</h2>
+  <p>Tape-out November 2025. Engineering samples August 2026. First deployments in OpenAI's own fleet at very small volume by the end of 2026,
+    the bulk of the ramp at the end of 2027. The silicon that was benchmarked is an early stepping; OpenAI reportedly expects the B0 revision to
+    add about 25 % in performance per watt. By the time Jalapeño runs at volume, the shipping Nvidia reference will not be Blackwell, and OpenAI's
+    own hardware lead said as much when the numbers went out.</p>
+
+  <h2><span class="kicker">Method</span>How I read a vendor-first benchmark</h2>
+  <p>The same checklist I apply to my own measurements on the <a href="../#casestudy">Mandelbrot case study</a> applies here — only the
+    scale of the machine differs.</p>
+  <div class="checks">
+    <div class="check"><div class="tick">✓</div><p><b>Find the denominator.</b> Per-chip watts and all-in megawatts differ by 2× or more. A perf/W headline without the denominator is not a number.</p></div>
+    <div class="check"><div class="tick">✓</div><p><b>Normalize by bytes per second per watt first.</b> For decode, memory bandwidth per watt is the roofline. Credit architecture only with what is left after that.</p></div>
+    <div class="check"><div class="tick">✓</div><p><b>Locate the operating point.</b> One point on an interactivity-vs-throughput curve is a marketing number; the curve is the engineering number.</p></div>
+    <div class="check"><div class="tick">✓</div><p><b>List what was disabled.</b> Here speculative decoding was off on the vendor's own chip — a handicap in the right direction. It is often the other way around.</p></div>
+    <div class="check"><div class="tick">✓</div><p><b>Compare shipping silicon with shipping silicon.</b> An engineering sample vs a two-year-old memory generation is a preview, not a benchmark.</p></div>
+  </div>
+
+  <div class="callout">What survives scrutiny: a 700 W ASIC with six HBM4 stacks delivers about <b>1.9×</b> Blackwell's tokens per kilowatt on
+    GPT-OSS 120B at 8k/1k, with speculative decoding off. What does not: the idea that this says much about architecture beyond
+    "newer memory, leaner host, one die tuned for one job". Both are worth knowing — the second is why the cost of a token keeps falling.</div>
+
+  <p>Why this matters to me beyond the spec sheet: every agent I build or consult on is priced in tokens, and tokens are priced in watts.
+    When the lab that runs the model also designs the silicon for it, the floor under inference cost keeps moving down — and the
+    model-routing and cost-control work that already pays for itself today pays more tomorrow.</p>
+
+  <div class="sources">
+    <h3>Sources</h3>
+    <ol>
+      <li><a href="https://openai.com/index/jalapeno-first-results/">OpenAI — Jalapeño's first results</a> (published numbers, wattages, timeline)</li>
+      <li><a href="https://newsletter.semianalysis.com/p/openai-jalapeno-better-than-nvidia">SemiAnalysis — OpenAI Jalapeño: Better Than Nvidia Blackwell</a> (chip spec, methodology, Rubin comparison, provenance caveat)</li>
+      <li><a href="https://inferencex.semianalysis.com/">InferenceX by SemiAnalysis</a> (benchmark definition and public recipes)</li>
+      <li><a href="https://techcrunch.com/2026/08/25/openais-jalapeno-chip-is-built-for-fast-inference-at-scale-benchmarks-show/">TechCrunch — Jalapeño is built for fast inference at scale</a> (deployment timeline, Broadcom, the "competition will have advanced" caveat)</li>
+      <li><a href="https://www.igorslab.de/en/openai-jalapeno-beats-nvidia-gb200-gb300-in-initial-inference-benchmarks-up-to-36x-lower-latency/">igor'sLAB — Jalapeño vs GB200/GB300</a> (per-model multipliers and latencies)</li>
+    </ol>
+  </div>
+
+  <div class="more">
+    <h3>Next article</h3>
+    <a class="next" href="lpddr5x-pim-decode-roofline.html">
+      <div class="ic">MEMORY · EDGE INFERENCE</div>
+      <b>LPDDR5X-PIM: 8× bandwidth became 3× tokens — where the other 5× went</b>
+      <span>Samsung put MAC units inside DRAM banks. A roofline on Llama 3.1 8B shows what processing-in-memory fixes and what it can't.</span>
+    </a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 <a href="https://www.jakubjirak.com">Jakub Jirák</a> — Principal Software Engineer.<br>
+      Architecture · Automation · Performance · AI integration.</div>
+    <div style="text-align:right"><a href="../">← Back to the case study</a><br>
+      <span style="font-family:var(--mono); font-size:13px">no magic, only measurement</span></div>
+  </div>
+</footer>
+
+</body>
+</html>
