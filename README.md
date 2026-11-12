@@ -292,36 +292,30 @@ This benchmark evaluates:
 
 ## Testing
 
-This project includes comprehensive tests for all implementations. Tests run automatically on every push via GitHub Actions.
+`test_implementations.py` checks the seven Python-side implementations (pure
+Python, FastPybrot, FasterPybrot, NumPy, DuckDB, SQLite, DataFusion) for
+**correctness**, not just output shape:
 
-### Running Tests Locally
+- **Known points** - c values with an analytically known escape count
+  (`0`, `-1`, `-2`, `0.25`, `i`, `1`, `-2.5`, ...) sit exactly on pixel centres
+  of a 15x9 grid and must come out exact.
+- **Reference comparison** - every engine is compared pixel by pixel with an
+  independent scalar escape-time reference on a 64x40 grid (at most 0.5 %
+  of pixels may differ; today they are bit-exact).
+- **Off-by-one guard** - a one-iteration run must give 1 everywhere.
+- **Utilities and registry** - image writing, the benchmark runner, and that
+  every `main.BENCHMARKS` entry points at an existing module/function.
+
+The native, GPU and other-language entries need their own toolchains and
+are not run in CI.
 
 ```bash
-# Run all tests
-make test
-
-# Or use pytest directly
-pytest test_implementations.py -v
-
-# Run only basic tests (faster)
-make test_quick
+pip install -r requirements.txt
+make test            # or: python -m pytest test_implementations.py
 ```
 
-### What Tests Cover
-
-- **Basic Functionality** - Each implementation can execute without errors
-- **Output Validation** - Results have correct dimensions and value ranges
-- **Consistency** - Known mathematical properties of the Mandelbrot set
-- **Edge Cases** - Minimal dimensions, single iterations, many iterations
-- **Utilities** - Image saving and benchmark runner functionality
-
-### Continuous Integration
-
-Tests run on every push and pull request via GitHub Actions. The workflow:
-1. Tests all 7 implementations individually
-2. Validates output dimensions and ranges
-3. Runs the full test suite with pytest
-4. Verifies the main benchmark runner
+GitHub Actions runs the same suite on every push to `master` and on pull
+requests (`.github/workflows/test.yml`, about a second of test time).
 
 ## Contributing
 

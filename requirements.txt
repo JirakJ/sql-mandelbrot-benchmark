@@ -1,6 +1,6 @@
-numpy
-duckdb
-pillow>=12.2.0
-matplotlib
-datafusion
-pytest
+numpy==2.5.4
+duckdb==2.0.0
+pillow==13.0.0
+matplotlib==3.11.2
+datafusion==55.0.0
+pytest==9.2.0

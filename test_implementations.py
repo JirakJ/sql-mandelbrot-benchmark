@@ -1,232 +1,203 @@
 """
-Tests for Mandelbrot set implementations.
+Correctness tests for the Python-side Mandelbrot implementations.
 
-This test suite validates that all implementations:
-1. Can run without errors
-2. Produce valid output
-3. Generate consistent results
-4. Handle edge cases properly
+Every implementation is checked against an independent scalar reference
+(escape-time iteration written out in this file), on:
 
-Author: Test suite for sql-mandelbrot-benchmark
-License: MIT
+* hand-picked points whose escape count is known analytically, placed
+  exactly on pixel centres of a small grid, and
+* a full comparison grid, pixel by pixel.
+
+The native / GPU / other-language entries need their own toolchains and
+are not exercised here; for those only the benchmark registry is checked.
 """
 
-import pytest
+from pathlib import Path
+
 import numpy as np
+import pytest
+
+# (module, function) for every implementation that only needs requirements.txt
+IMPLEMENTATIONS = [
+    ("pybrot", "run_pybrot"),
+    ("fastpybrot", "run_pybrot"),
+    ("fasterpybrot", "run_pybrot"),
+    ("numpybrot", "run_numpybrot"),
+    ("duckbrot", "run_duckbrot"),
+    ("sqlitebrot", "run_sqlitebrot"),
+    ("arrow_datafusion", "run_arrow_datafusion"),
+]
+
+# View window shared by all implementations: re [-2.5, 1.0], im [-1.0, 1.0]
+RE_MIN, RE_MAX = -2.5, 1.0
+IM_MIN, IM_MAX = -1.0, 1.0
+
+# Comparison grid: big enough to cover the interesting boundary, small
+# enough that the slowest engine (SQLite recursive CTE) stays well < 1 s.
+GRID_W, GRID_H, GRID_MAX = 64, 40, 64
+
+# Fraction of pixels allowed to differ from the reference. The engines are
+# currently bit-exact; the slack only absorbs a different FMA/rounding
+# strategy on some CPU flipping a chaotic boundary pixel.
+MAX_MISMATCH_FRACTION = 0.005
 
 
-# Test configuration - use small dimensions for fast tests
-TEST_WIDTH = 100
-TEST_HEIGHT = 60
-TEST_MAX_ITERATIONS = 50
+def reference_escape(cx: float, cy: float, max_iterations: int) -> int:
+    """Number of z -> z^2 + c steps taken before |z| > 2 (capped)."""
+    zx = zy = 0.0
+    for i in range(max_iterations):
+        if zx * zx + zy * zy > 4.0:
+            return i
+        zx, zy = zx * zx - zy * zy + cx, 2.0 * zx * zy + cy
+    return max_iterations
 
 
-class TestImplementations:
-    """Test suite for all Mandelbrot implementations."""
-
-    def test_duckbrot_basic(self):
-        """Test DuckDB implementation runs successfully."""
-        from duckbrot import run_duckbrot
-        
-        result = run_duckbrot(TEST_WIDTH, TEST_HEIGHT, TEST_MAX_ITERATIONS)
-        
-        assert result is not None
-        assert isinstance(result, np.ndarray)
-        assert result.shape == (TEST_HEIGHT, TEST_WIDTH)
-        assert result.dtype == np.uint16
-        assert result.min() >= 0
-        assert result.max() <= TEST_MAX_ITERATIONS
-
-    def test_pybrot_basic(self):
-        """Test pure Python implementation runs successfully."""
-        from pybrot import run_pybrot
-        
-        result = run_pybrot(TEST_WIDTH, TEST_HEIGHT, TEST_MAX_ITERATIONS)
-        
-        assert result is not None
-        assert len(result) == TEST_HEIGHT
-        assert len(result[0]) == TEST_WIDTH
-        # Verify all values are within expected range
-        for row in result:
-            for val in row:
-                assert 0 <= val <= TEST_MAX_ITERATIONS
-
-    def test_numpybrot_basic(self):
-        """Test NumPy implementation runs successfully."""
-        from numpybrot import run_numpybrot
-        
-        result = run_numpybrot(TEST_WIDTH, TEST_HEIGHT, TEST_MAX_ITERATIONS)
-        
-        assert result is not None
-        assert isinstance(result, np.ndarray)
-        assert result.shape == (TEST_HEIGHT, TEST_WIDTH)
-        assert result.dtype == np.uint16
-        assert result.min() >= 0
-        assert result.max() <= TEST_MAX_ITERATIONS
-
-    def test_sqlitebrot_basic(self):
-        """Test SQLite implementation runs successfully."""
-        from sqlitebrot import run_sqlitebrot
-        
-        result = run_sqlitebrot(TEST_WIDTH, TEST_HEIGHT, TEST_MAX_ITERATIONS)
-        
-        assert result is not None
-        assert isinstance(result, np.ndarray)
-        assert result.shape == (TEST_HEIGHT, TEST_WIDTH)
-        assert result.dtype == np.uint16
-        assert result.min() >= 0
-        assert result.max() <= TEST_MAX_ITERATIONS
-
-    def test_fastpybrot_basic(self):
-        """Test FastPybrot implementation runs successfully."""
-        from fastpybrot import run_pybrot
-        
-        result = run_pybrot(TEST_WIDTH, TEST_HEIGHT, TEST_MAX_ITERATIONS)
-        
-        assert result is not None
-        assert len(result) == TEST_HEIGHT
-        assert len(result[0]) == TEST_WIDTH
-
-    def test_fasterpybrot_basic(self):
-        """Test FasterPybrot implementation runs successfully."""
-        from fasterpybrot import run_pybrot
-        
-        result = run_pybrot(TEST_WIDTH, TEST_HEIGHT, TEST_MAX_ITERATIONS)
-        
-        assert result is not None
-        assert len(result) == TEST_HEIGHT
-        assert len(result[0]) == TEST_WIDTH
-
-    def test_arrow_datafusion_basic(self):
-        """Test Arrow DataFusion implementation runs successfully."""
-        from arrow_datafusion import run_arrow_datafusion
-        
-        result = run_arrow_datafusion(TEST_WIDTH, TEST_HEIGHT, TEST_MAX_ITERATIONS)
-        
-        assert result is not None
-        assert isinstance(result, np.ndarray)
-        assert result.shape == (TEST_HEIGHT, TEST_WIDTH)
+def reference_grid(width: int, height: int, max_iterations: int) -> np.ndarray:
+    out = np.empty((height, width), dtype=np.int64)
+    for y in range(height):
+        cy = IM_MIN + y * (IM_MAX - IM_MIN) / (height - 1)
+        for x in range(width):
+            cx = RE_MIN + x * (RE_MAX - RE_MIN) / (width - 1)
+            out[y, x] = reference_escape(cx, cy, max_iterations)
+    return out
 
 
-class TestConsistency:
-    """Test that implementations produce consistent results."""
-
-    @pytest.fixture
-    def small_config(self):
-        """Small test configuration for consistency checks."""
-        return {
-            'width': 20,
-            'height': 15,
-            'max_iterations': 20
-        }
-
-    def test_known_point_in_set(self, small_config):
-        """Test that point (0, 0) is in the Mandelbrot set."""
-        from duckbrot import run_duckbrot
-        
-        # Point (0, 0) should be in the set (max iterations)
-        result = run_duckbrot(
-            small_config['width'],
-            small_config['height'],
-            small_config['max_iterations']
-        )
-        
-        # Find the pixel closest to (0, 0) in complex plane
-        # Complex plane range: real [-2.5, 1.0], imag [-1.0, 1.0]
-        # (0, 0) maps to approximately pixel (width * 2.5/3.5, height * 0.5)
-        x_pixel = int(small_config['width'] * 2.5 / 3.5)
-        y_pixel = int(small_config['height'] * 0.5)
-        
-        # Should have high iteration count (in the set)
-        assert result[y_pixel, x_pixel] >= small_config['max_iterations'] * 0.8
-
-    def test_known_point_outside_set(self, small_config):
-        """Test that point (2, 2) escapes quickly."""
-        from duckbrot import run_duckbrot
-        
-        result = run_duckbrot(
-            small_config['width'],
-            small_config['height'],
-            small_config['max_iterations']
-        )
-        
-        # Point near (1, 1) should escape quickly
-        # This is at the edge of our viewing window
-        x_pixel = small_config['width'] - 1
-        y_pixel = small_config['height'] - 1
-        
-        # Should have low iteration count (escapes quickly)
-        assert result[y_pixel, x_pixel] < small_config['max_iterations'] * 0.5
+def run(module_name: str, func_name: str, width: int, height: int, max_iter: int):
+    module = pytest.importorskip(module_name)
+    result = getattr(module, func_name)(width, height, max_iter)
+    return np.asarray(result).astype(np.int64)
 
 
-class TestEdgeCases:
-    """Test edge cases and error handling."""
-
-    def test_minimal_dimensions(self):
-        """Test with minimal valid dimensions."""
-        from duckbrot import run_duckbrot
-        
-        result = run_duckbrot(2, 2, 5)
-        assert result is not None
-        assert result.shape == (2, 2)
-
-    def test_single_iteration(self):
-        """Test with single iteration."""
-        from pybrot import run_pybrot
-        
-        result = run_pybrot(10, 10, 1)
-        assert result is not None
-        assert len(result) == 10
-
-    def test_many_iterations(self):
-        """Test with many iterations on small grid."""
-        from numpybrot import run_numpybrot
-        
-        result = run_numpybrot(10, 10, 500)
-        assert result is not None
-        assert result.shape == (10, 10)
+impl_params = pytest.mark.parametrize(
+    "module_name,func_name",
+    IMPLEMENTATIONS,
+    ids=[m for m, _ in IMPLEMENTATIONS],
+)
 
 
-class TestUtils:
-    """Test utility functions."""
-
-    def test_save_mandelbrot_image(self, tmp_path):
-        """Test image saving functionality."""
-        from utils import save_mandelbrot_image
-        from numpybrot import run_numpybrot
-        
-        # Generate small result
-        result = run_numpybrot(20, 15, 20)
-        
-        # Save to temporary directory
-        import os
-        original_dir = os.getcwd()
-        os.chdir(tmp_path)
-        
-        try:
-            save_mandelbrot_image(result, 20, 'test.png')
-            
-            # Check that file was created
-            assert (tmp_path / 'images' / 'test.png').exists()
-        finally:
-            os.chdir(original_dir)
-
-    def test_benchmark_execution(self):
-        """Test benchmark runner utility."""
-        from utils import run_benchmark
-        from pybrot import run_pybrot
-        
-        result, elapsed_ms = run_benchmark(
-            "Test Benchmark",
-            run_pybrot,
-            10, 10, 5
-        )
-        
-        assert result is not None
-        assert elapsed_ms is not None
-        assert elapsed_ms > 0
+@pytest.fixture(scope="module")
+def reference():
+    return reference_grid(GRID_W, GRID_H, GRID_MAX)
 
 
-if __name__ == "__main__":
-    # Run tests with pytest
-    pytest.main([__file__, '-v'])
+# --- the reference itself ---------------------------------------------------
+
+# 15 x 9 pixels -> step 0.25 in both axes, so these c values are exact pixels.
+KNOWN_W, KNOWN_H, KNOWN_MAX = 15, 9, 50
+KNOWN_POINTS = [
+    # (cx, cy, expected escape count)
+    (0.0, 0.0, KNOWN_MAX),  # fixed point z = 0
+    (-1.0, 0.0, KNOWN_MAX),  # period-2 cycle 0, -1, 0, ...
+    (-2.0, 0.0, KNOWN_MAX),  # tip of the set: z = 2 forever, |z|^2 == 4
+    (0.25, 0.0, KNOWN_MAX),  # cusp of the main cardioid
+    (0.0, 1.0, KNOWN_MAX),  # c = i: preperiodic, bounded
+    (-0.25, 0.25, KNOWN_MAX),  # inside the main cardioid
+    (1.0, 0.0, 3),  # 0, 1, 2, 5 -> escapes on the 3rd check
+    (-2.5, 0.0, 1),  # |c| > 2 escapes after one step
+    (1.0, 1.0, 2),  # 0, 1+i, 1+3i
+    (-2.5, 1.0, 1),  # far corner
+]
+
+
+def pixel_of(cx: float, cy: float) -> tuple[int, int]:
+    x = round((cx - RE_MIN) / (RE_MAX - RE_MIN) * (KNOWN_W - 1))
+    y = round((cy - IM_MIN) / (IM_MAX - IM_MIN) * (KNOWN_H - 1))
+    return y, x
+
+
+@pytest.mark.parametrize("cx,cy,expected", KNOWN_POINTS)
+def test_reference_known_points(cx, cy, expected):
+    assert reference_escape(cx, cy, KNOWN_MAX) == expected
+
+
+def test_reference_is_symmetric_about_real_axis(reference):
+    # Mandelbrot set is symmetric under conjugation; the grid is symmetric
+    # in y, so rows mirror (allowing a stray boundary pixel from rounding).
+    mismatch = np.count_nonzero(reference != reference[::-1, :])
+    assert mismatch <= MAX_MISMATCH_FRACTION * reference.size
+
+
+# --- every implementation ---------------------------------------------------
+
+
+@impl_params
+def test_output_shape_and_range(module_name, func_name):
+    result = run(module_name, func_name, 31, 17, 40)
+    assert result.shape == (17, 31)
+    assert result.min() >= 0
+    assert result.max() == 40  # the window always contains set points
+
+
+@impl_params
+def test_known_points(module_name, func_name):
+    result = run(module_name, func_name, KNOWN_W, KNOWN_H, KNOWN_MAX)
+    for cx, cy, expected in KNOWN_POINTS:
+        y, x = pixel_of(cx, cy)
+        assert result[y, x] == expected, f"c = {cx}{cy:+}i at pixel ({y}, {x})"
+
+
+@impl_params
+def test_matches_reference(module_name, func_name, reference):
+    result = run(module_name, func_name, GRID_W, GRID_H, GRID_MAX)
+    assert result.shape == reference.shape
+    diff = result != reference
+    assert np.count_nonzero(diff) <= MAX_MISMATCH_FRACTION * reference.size, (
+        f"{np.count_nonzero(diff)} of {reference.size} pixels differ, "
+        f"max |delta| = {np.abs(result - reference).max()}"
+    )
+    # Set membership must agree everywhere except at those rare pixels.
+    in_set = result == GRID_MAX
+    assert np.count_nonzero(in_set != (reference == GRID_MAX)) <= np.count_nonzero(diff)
+
+
+@impl_params
+def test_single_iteration(module_name, func_name):
+    # With a cap of 1 every pixel takes exactly one step (catches off-by-one).
+    result = run(module_name, func_name, KNOWN_W, KNOWN_H, 1)
+    np.testing.assert_array_equal(result, reference_grid(KNOWN_W, KNOWN_H, 1))
+
+
+# --- utilities and registry -------------------------------------------------
+
+
+def test_save_mandelbrot_image(tmp_path, monkeypatch):
+    from matplotlib import colormaps
+    from PIL import Image
+
+    from utils import save_mandelbrot_image
+
+    monkeypatch.chdir(tmp_path)
+    data = reference_grid(20, 15, 20)
+    save_mandelbrot_image(data, 20, "test.png")
+
+    out = tmp_path / "images" / "test.png"
+    assert out.exists()
+    with Image.open(out) as img:
+        assert img.size == (20, 15)
+        # in-set pixels get the darkest colour of the map, escaped ones not
+        darkest = tuple(int(v * 255) for v in colormaps["hot"](0.0)[:3])
+        y, x = np.argwhere(data == 20)[0]
+        assert img.getpixel((int(x), int(y)))[:3] == darkest
+        y, x = np.argwhere(data == data[data < 20].max())[0]
+        assert img.getpixel((int(x), int(y)))[:3] != darkest
+
+
+def test_run_benchmark_returns_result_and_time():
+    from pybrot import run_pybrot
+    from utils import run_benchmark
+
+    result, elapsed_ms = run_benchmark("pure python", run_pybrot, 10, 8, 5)
+    assert np.asarray(result).shape == (8, 10)
+    assert elapsed_ms is not None and elapsed_ms >= 0
+
+
+def test_benchmark_registry_points_at_existing_modules():
+    from main import BENCHMARKS
+
+    root = Path(__file__).parent
+    names = [name for name, _, _ in BENCHMARKS]
+    assert len(names) == len(set(names)), "duplicate benchmark names"
+    for _, module_name, func_name in BENCHMARKS:
+        source = root / f"{module_name}.py"
+        assert source.exists(), f"missing {source.name}"
+        assert f"def {func_name}(" in source.read_text(encoding="utf-8")
