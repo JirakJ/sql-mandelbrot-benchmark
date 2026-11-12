@@ -38,18 +38,17 @@ def run_sqlitebrot(width, height, max_iterations):
     # carry untrusted text (defense-in-depth for the f-string interpolation).
     width, height, max_iterations = int(width), int(height), int(max_iterations)
 
-    # Calculate step sizes
-    x_step = 3.5 / (width - 1)
-    y_step = 2.0 / (height - 1)
-
     # Build the SQL query - SQLite has excellent recursive CTE support
+    # Coordinates are derived from the pixel index (same formula as the other
+    # implementations) instead of accumulating a step, which drifted by a few
+    # ULPs and flipped iteration counts near the set boundary.
     mandelbrot_query = f"""
     WITH RECURSIVE
       -- Generate x-axis coordinates
       xaxis(x, ix) AS (
         SELECT -2.5, 0
         UNION ALL
-        SELECT x + {x_step}, ix + 1
+        SELECT -2.5 + ((ix + 1) * 3.5 / {width - 1}.0), ix + 1
         FROM xaxis
         WHERE ix < {width - 1}
       ),
@@ -57,7 +56,7 @@ def run_sqlitebrot(width, height, max_iterations):
       yaxis(y, iy) AS (
         SELECT -1.0, 0
         UNION ALL
-        SELECT y + {y_step}, iy + 1
+        SELECT -1.0 + ((iy + 1) * 2.0 / {height - 1}.0), iy + 1
         FROM yaxis
         WHERE iy < {height - 1}
       ),
@@ -77,7 +76,7 @@ def run_sqlitebrot(width, height, max_iterations):
           zx * zx - zy * zy + cx,
           2.0 * zx * zy + cy
         FROM mandelbrot_iterations
-        WHERE (zx * zx + zy * zy) < 4.0
+        WHERE (zx * zx + zy * zy) <= 4.0
           AND iter < {max_iterations}
       ),
       -- Get max iteration for each pixel

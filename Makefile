@@ -4,3 +4,6 @@ format:
 
 run_benchmark:
 	uv run python main.py
+
+test:
+	python -m pytest test_implementations.py -q

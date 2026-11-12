@@ -290,6 +290,33 @@ This benchmark evaluates:
 3. **Query Optimization** - How well engines optimize complex recursive queries
 4. **Scalability** - Performance with increasing iterations and resolution
 
+## Testing
+
+`test_implementations.py` checks the seven Python-side implementations (pure
+Python, FastPybrot, FasterPybrot, NumPy, DuckDB, SQLite, DataFusion) for
+**correctness**, not just output shape:
+
+- **Known points** - c values with an analytically known escape count
+  (`0`, `-1`, `-2`, `0.25`, `i`, `1`, `-2.5`, ...) sit exactly on pixel centres
+  of a 15x9 grid and must come out exact.
+- **Reference comparison** - every engine is compared pixel by pixel with an
+  independent scalar escape-time reference on a 64x40 grid (at most 0.5 %
+  of pixels may differ; today they are bit-exact).
+- **Off-by-one guard** - a one-iteration run must give 1 everywhere.
+- **Utilities and registry** - image writing, the benchmark runner, and that
+  every `main.BENCHMARKS` entry points at an existing module/function.
+
+The native, GPU and other-language entries need their own toolchains and
+are not run in CI.
+
+```bash
+pip install -r requirements.txt
+make test            # or: python -m pytest test_implementations.py
+```
+
+GitHub Actions runs the same suite on every push to `master` and on pull
+requests (`.github/workflows/test.yml`, about a second of test time).
+
 ## Contributing
 
 Contributions very welcome! Especially:

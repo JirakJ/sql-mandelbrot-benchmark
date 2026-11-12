@@ -62,7 +62,7 @@ def compute_mandelbrot_unrolled(width, height, max_iterations):
                 mag2 = zr * zr + zi * zi
                 escaped = mag2 > 4.0
                 newly_escaped = escaped & mask
-                iterations[newly_escaped] = i
+                iterations[newly_escaped] = i + 1
                 mask &= ~escaped
 
             # Iteration 2
@@ -75,7 +75,7 @@ def compute_mandelbrot_unrolled(width, height, max_iterations):
                 mag2 = zr * zr + zi * zi
                 escaped = mag2 > 4.0
                 newly_escaped = escaped & mask
-                iterations[newly_escaped] = i + 1
+                iterations[newly_escaped] = i + 2
                 mask &= ~escaped
 
             # Iteration 3
@@ -88,7 +88,7 @@ def compute_mandelbrot_unrolled(width, height, max_iterations):
                 mag2 = zr * zr + zi * zi
                 escaped = mag2 > 4.0
                 newly_escaped = escaped & mask
-                iterations[newly_escaped] = i + 2
+                iterations[newly_escaped] = i + 3
                 mask &= ~escaped
 
             # Iteration 4
@@ -101,7 +101,7 @@ def compute_mandelbrot_unrolled(width, height, max_iterations):
                 mag2 = zr * zr + zi * zi
                 escaped = mag2 > 4.0
                 newly_escaped = escaped & mask
-                iterations[newly_escaped] = i + 3
+                iterations[newly_escaped] = i + 4
                 mask &= ~escaped
 
     return iterations
